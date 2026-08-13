@@ -6,27 +6,17 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"log"
 )
 
 // VerifyEd25519 verifies an Ed25519 signature (RFC 8032, pure mode)
 func VerifyEd25519(publicKey ed25519.PublicKey, message, signature []byte) bool {
-	log.Printf("[DEBUG VerifyEd25519] publicKey len=%d hex=%x", len(publicKey), publicKey)
-	log.Printf("[DEBUG VerifyEd25519] message len=%d sha256=%x", len(message), sha256.Sum256(message))
-	log.Printf("[DEBUG VerifyEd25519] signature len=%d hex=%x", len(signature), signature)
-
 	if len(publicKey) != ed25519.PublicKeySize {
-		log.Printf("[DEBUG VerifyEd25519] FAIL: publicKey size mismatch (expected %d, got %d)", ed25519.PublicKeySize, len(publicKey))
 		return false
 	}
 	if len(signature) != ed25519.SignatureSize {
-		log.Printf("[DEBUG VerifyEd25519] FAIL: signature size mismatch (expected %d, got %d)", ed25519.SignatureSize, len(signature))
 		return false
 	}
-
-	result := ed25519.Verify(publicKey, message, signature)
-	log.Printf("[DEBUG VerifyEd25519] ed25519.Verify result=%v", result)
-	return result
+	return ed25519.Verify(publicKey, message, signature)
 }
 
 // SHA256 computes SHA-256 hash and returns raw bytes
