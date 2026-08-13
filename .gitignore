@@ -1,0 +1,36 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+hacp-sidecar
+gen-token
+
+# Build artifacts
+/bin/
+/dist/
+/build/
+
+# Test artifacts
+*.test
+*.out
+*.prof
+headers.txt
+provenance.jsonl
+
+# Dependency directories (optional - Go modules handles this)
+# vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
