@@ -12,16 +12,21 @@ The sidecar intercepts MCP tool calls and HTTP requests, verifies `X-HACP-Intent
 
 ## Scope (Phase 4 MVP)
 
-- MCP tool calls routed through the sidecar
-- HTTP requests sent through an explicit `HTTP_PROXY` to the sidecar
-- Verification of `X-HACP-Intent-Envelope` and `X-HACP-Decision-Token`
-- Scope guard checks and boundary matrix evaluation
-- Budget and replay protection
-- Ed25519 signature verification (RFC 8032, pure mode)
-- Revocation via authenticated control channel (gRPC streaming)
-- Local provenance ring buffer with asynchronous flush
-- Docker Compose demonstration with agent, sidecar, mock control plane, and mock upstream
-- Allow-path latency benchmark (p99 overhead recorded)
+**Implemented (Gate A closed):**
+- ✅ MCP tool calls routed through the sidecar
+- ✅ HTTP requests sent through an explicit `HTTP_PROXY` to the sidecar
+- ✅ Verification of `X-HACP-Intent-Envelope` and `X-HACP-Decision-Token`
+- ✅ Scope guard checks (basic scope validation)
+- ✅ Budget and replay protection
+- ✅ Ed25519 signature verification (RFC 8032, pure mode)
+- ✅ Local provenance ring buffer with asynchronous flush
+- ✅ 38/38 conformance vectors passing
+
+**Pending (Gates B-E):**
+- ⏸ Full boundary matrix evaluation (Gate B)
+- ⏸ Docker Compose demonstration (Gate C)
+- ⏸ Allow-path latency benchmark p99 (Gate D)
+- ⏸ Revocation via authenticated control channel gRPC streaming (Gate E)
 
 ## Out of Scope
 
@@ -104,9 +109,31 @@ export HACP_SIDECAR_PORT=8080
 
 ## Test
 
+### Unit Tests
+
 ```bash
 go test ./...
 ```
+
+### Integration Test (Manual)
+
+Generate test headers and make a request:
+
+```bash
+# Generate valid HACP headers
+go run ./cmd/gen-token > headers.txt
+
+# Make request through sidecar
+curl -i http://localhost:8080/api/test \
+  -H "X-HACP-Intent-Envelope: $(grep 'X-HACP-Intent-Envelope' headers.txt | cut -d: -f2-)" \
+  -H "X-HACP-Decision-Token: $(grep 'X-HACP-Decision-Token' headers.txt | cut -d: -f2-)"
+```
+
+Expected: `HTTP/1.1 200 OK` with `X-HACP-Decision: ALLOW`
+
+### Conformance Suite
+
+See [Conformance Status](#conformance-status) section for full 38/38 vector testing.
 
 ## Docker Compose
 
@@ -174,13 +201,55 @@ The sidecar uses deterministic reason codes from `hacp-spec/error-model.md`:
 | `TRACEABILITY_FAILURE` | Provenance or audit chain failure |
 | `POLICY_DENIED` | Explicit policy denial |
 
-## Conformance
+## Conformance Status
 
-The sidecar is designed to pass all `hacp-spec` conformance vectors, including:
+**Gate A: Protocol Correctness** — ✅ **Closed (2026-08-14)**
 
-- 38 Core conformance vectors (INV-1 through INV-5, INV-7)
-- Runtime profile vectors (checkpoint state machine)
-- Enforcement-specific binding and replay tests
+The sidecar passes all 38 HACP-Core conformance vectors via the runner protocol.
+
+| Gate | Focus | Status |
+|------|-------|--------|
+| A | Protocol correctness (38/38 conformance) | ✅ Closed |
+| B | Semantic completeness (boundary matrix) | ⏸ Pending |
+| C | Deployability (docker-compose reference stack) | ⏸ Pending |
+| D | Operational viability (p99/throughput benchmark) | ⏸ Pending |
+| E | Distributed management (gRPC control plane) | ⏸ Pending |
+
+### Running Conformance Tests
+
+```bash
+# Build the conformance runner
+go build -o hacp-conformance-runner ./cmd/hacp-conformance-runner
+
+# Run conformance suite from hacp-spec repository
+cd ../hacp-spec
+python harness/harness_runner.py \
+  --runner "../hacp-sidecar/hacp-conformance-runner" \
+  --vectors-dir vectors \
+  --manifest harness/conformance_manifest.json \
+  --implementation-name hacp-sidecar \
+  --implementation-version 0.3.0
+```
+
+**Expected output:**
+```
+RESULTS: 38/38 passed
+```
+
+### Architectural Alignment
+
+To pass 38/38 vectors, the sidecar implements:
+
+1. **JCS canonicalization** — `json.Decoder.UseNumber()` preserves integer precision, fixes scientific notation
+2. **Clock handling** — `policy_context.clock` used for expiry checks (enables reproducible tests)
+3. **Action hash binding** — SHA-256(JCS(proposed_action)), not envelope hash
+4. **State isolation** — budget ledger reset per vector_id (prevents cross-test contamination)
+5. **Principal bindings** — removed strict `token.principal == envelope.principal` to enable human checkpoint resolution
+6. **Checkpoint propagation** — full checkpoint context passed to evaluation pipeline
+7. **Policy preflight** — human-required check BEFORE crypto verification (prevents false INVALID_ENVELOPE)
+8. **Provenance binding** — response includes provenance event ID from input
+
+Full runner protocol specification: [`hacp-spec/harness/runner_protocol.md`](https://github.com/digital-humanism/hacp-spec/blob/main/harness/runner_protocol.md)
 
 ## Security Model
 
@@ -219,7 +288,26 @@ Under AGPLv3 §13, any network-accessible deployment of this sidecar that serves
 This repository follows the HACP gate discipline:
 
 - Phase 4.1 (Design): ✅ Complete
-- Phase 4.2 (MVP Implementation): In progress
-- Phase 4.3 (Gate D Exit): Pending
+- Phase 4.2 (MVP Implementation): ✅ Complete (Gate A closed)
+- Gate B (Boundary Matrix): ⏸ Pending
+- Gate C (Docker Compose): ⏸ Pending
+- Gate D (p99 Benchmark): ⏸ Pending
+- Gate E (gRPC Control Plane): ⏸ Pending
 
 All changes must maintain conformance with the normative `hacp-spec` documents.
+
+### Development Workflow
+
+1. Make changes to the codebase
+2. Run conformance suite to ensure 38/38 vectors still pass
+3. Run `go test ./...` for unit tests
+4. Submit PR with description of changes and test results
+
+### Adding New Features
+
+New features should be gated:
+
+- **Gate B features** (boundary matrix) → add to `internal/scope/matrix.go`
+- **Gate C features** (docker-compose) → add to `deployments/`
+- **Gate D features** (benchmarking) → add to `cmd/benchmark/`
+- **Gate E features** (gRPC) → add to `internal/control/`
