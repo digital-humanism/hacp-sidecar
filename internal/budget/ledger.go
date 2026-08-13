@@ -4,48 +4,106 @@ import (
 	"sync"
 )
 
-// Ledger tracks token consumption with atomic counters
+// Ledger tracks DecisionToken usage and envelope autonomy-budget
+// consumption separately.
 type Ledger struct {
-	mu       sync.Mutex
-	consumed map[string]int
+	mu sync.Mutex
+
+	tokenConsumed    map[string]int
+	autonomyConsumed map[string]int
 }
 
-// NewLedger creates a new budget ledger
+// NewLedger creates an empty budget ledger.
 func NewLedger() *Ledger {
 	return &Ledger{
-		consumed: make(map[string]int),
+		tokenConsumed:    make(map[string]int),
+		autonomyConsumed: make(map[string]int),
 	}
 }
 
-// Consume attempts to consume one use of a token.
-// Returns false if the token has reached its max_uses limit (budget exhausted or replayed).
-func (l *Ledger) Consume(tokenID string, maxUses int) bool {
-	if maxUses <= 0 {
+// ConsumeToken attempts to consume one use of a DecisionToken.
+//
+// Returns false if maxUses has already been reached.
+func (l *Ledger) ConsumeToken(tokenID string, maxUses int) bool {
+	if tokenID == "" || maxUses <= 0 {
 		return false
 	}
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	current := l.consumed[tokenID]
+	current := l.tokenConsumed[tokenID]
+
 	if current >= maxUses {
 		return false
 	}
 
-	l.consumed[tokenID] = current + 1
+	l.tokenConsumed[tokenID] = current + 1
 	return true
 }
 
-// Reset clears all counters (for testing)
+// ConsumeAutonomy attempts to consume one autonomous action
+// granted by an IntentEnvelope autonomy_budget.
+//
+// Returns false if maxActions has already been reached.
+func (l *Ledger) ConsumeAutonomy(
+	envelopeID string,
+	maxActions int,
+) bool {
+	if envelopeID == "" || maxActions <= 0 {
+		return false
+	}
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	current := l.autonomyConsumed[envelopeID]
+
+	if current >= maxActions {
+		return false
+	}
+
+	l.autonomyConsumed[envelopeID] = current + 1
+	return true
+}
+
+// Reset clears all per-vector budget state.
 func (l *Ledger) Reset() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.consumed = make(map[string]int)
+
+	l.tokenConsumed = make(map[string]int)
+	l.autonomyConsumed = make(map[string]int)
 }
 
-// Count returns the current consumption count for a token (for testing)
-func (l *Ledger) Count(tokenID string) int {
+// ResetTokens clears only DecisionToken usage counters.
+func (l *Ledger) ResetTokens() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	return l.consumed[tokenID]
+
+	l.tokenConsumed = make(map[string]int)
+}
+
+// ResetAutonomy clears only autonomy-budget counters.
+func (l *Ledger) ResetAutonomy() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.autonomyConsumed = make(map[string]int)
+}
+
+// TokenCount returns current token consumption for diagnostics/tests.
+func (l *Ledger) TokenCount(tokenID string) int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return l.tokenConsumed[tokenID]
+}
+
+// AutonomyCount returns current autonomy consumption for diagnostics/tests.
+func (l *Ledger) AutonomyCount(envelopeID string) int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	return l.autonomyConsumed[envelopeID]
 }
