@@ -87,7 +87,7 @@ Per `HACP-SPEC-0.9-draft.md` §5.1 and `wire/crypto-profile.md`:
 9. Provenance ring buffer acceptance
 10. Forward request
 
-The pipeline is strictly fail-closed: any validation failure results in `DENY` with a deterministic reason code.
+The pipeline is strictly fail-closed: any validation failure results in `DENY` with a deterministic reason code. 
 
 ## Requirements
 
