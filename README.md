@@ -6,7 +6,7 @@ Implements the HACP-Enforcement profile per [`hacp-spec`](https://github.com/dig
 
 ## Overview
 
-HACP Sidecar is a fail-closed enforcement point that sits between an AI agent and external tools. It  ensures that no action is executed without a valid, cryptographically signed HACP decision token.
+HACP Sidecar is a fail-closed enforcement point that sits between an AI agent and external tools. It ensures that no action is executed without a valid, cryptographically signed HACP decision token.
 
 The sidecar intercepts MCP tool calls and HTTP requests, verifies `X-HACP-Intent-Envelope` and `X-HACP-Decision-Token` headers, and either forwards the request upstream or denies it with a deterministic reason code.
 
