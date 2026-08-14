@@ -43,26 +43,39 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 2: Build request context
+	// Step 2: Read body
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		h.respondDeny(w, requestID, evaluate.ReasonInvalidAction, err, env, tok, start)
 		return
 	}
-	r.Body = io.NopCloser(io.Reader(newBytesReader(bodyBytes))) // restore for forwarding
+	r.Body = io.NopCloser(newBytesReader(bodyBytes))
 
 	payloadHash := wire.SHA256Hex(bodyBytes)
-	reqCtx := &evaluate.RequestContext{
-		Method:      r.Method,
-		Path:        r.URL.Path,
-		ToolName:    r.Header.Get("X-HACP-Tool-Name"), // optional deployment hint
-		PayloadHash: payloadHash,
-		Timestamp:   time.Now(),
-		RequestID:   requestID,
-		LatencyNs:   time.Since(start).Nanoseconds(),
+
+	// Step 2b: Synthesize proposed_action from HTTP request + granted scope.
+	// This closes the action_hash binding gap in HTTP mode: token.action_hash
+	// MUST match SHA-256(JCS(proposed_action)).
+	proposedAction := SynthesizeProposedAction(r, env, payloadHash)
+	proposedActionJSON, err := json.Marshal(proposedAction)
+	if err != nil {
+		h.respondDeny(w, requestID, evaluate.ReasonInvalidAction, err, env, tok, start)
+		return
 	}
 
-	// Step 3: Run evaluation pipeline
+	// Step 3: Build request context (with ProposedAction for pipeline binding)
+	reqCtx := &evaluate.RequestContext{
+		Method:         r.Method,
+		Path:           r.URL.Path,
+		ToolName:       r.Header.Get("X-HACP-Tool-Name"),
+		PayloadHash:    payloadHash,
+		Timestamp:      time.Now(),
+		RequestID:      requestID,
+		LatencyNs:      time.Since(start).Nanoseconds(),
+		ProposedAction: proposedActionJSON,
+	}
+
+	// Step 4: Run evaluation pipeline
 	decision := h.Pipeline.Evaluate(r.Context(), env, tok, reqCtx)
 
 	if !decision.Allow {
@@ -70,7 +83,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Step 4: Forward request upstream
+	// Step 5: Forward request upstream
 	h.forwardUpstream(w, r, bodyBytes, requestID)
 
 	latency := time.Since(start)

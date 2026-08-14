@@ -81,12 +81,13 @@ func (g *DefaultScopeGuard) CheckBoundary(scopeGrant *wire.ScopeGrant, req *Requ
 
 	for _, check := range checks {
 		action := scope.EvaluateBoundaryCrossing(check.attr, check.scopeValues, check.proposedValue)
-		if action == scope.ActionDeny {
+		// In HTTP proxy mode, only explicit ALLOW passes.
+		// CHECKPOINT and REAUTHORIZE outcomes are treated as DENY at the proxy boundary;
+		// full re-auth / checkpoint flow will be implemented in Gate E (gRPC control plane).
+		if action != scope.ActionAllow {
 			return false
 		}
-		// For ALLOW, CHECKPOINT, REAUTHORIZE → continue
-		// Future: return Action instead of bool for proper CHECKPOINT/REAUTHORIZE handling
 	}
-
 	return true
+
 }

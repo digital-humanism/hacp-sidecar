@@ -550,7 +550,7 @@ func (r *Runner) handleRevoke(req Request) Response {
 	}
 }
 
-func (r *Runner) handleExplain(req Request) Response {
+func (r *Runner) handleExplain(_ Request) Response {
 
 	return Response{
 		ProtocolVersion: ProtocolVersion,
