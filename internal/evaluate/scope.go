@@ -3,42 +3,36 @@ package evaluate
 import (
 	"strings"
 
+	"hacp-sidecar/internal/scope"
 	"hacp-sidecar/internal/wire"
 )
 
-// DefaultScopeGuard implements ScopeGuard with boundary matrix evaluation
-type DefaultScopeGuard struct {
-	// Add any configuration needed for boundary matrix
-}
+// DefaultScopeGuard implements ScopeGuard with boundary matrix evaluation.
+type DefaultScopeGuard struct{}
 
-// NewDefaultScopeGuard creates a new default scope guard
+// NewDefaultScopeGuard creates a new default scope guard.
 func NewDefaultScopeGuard() *DefaultScopeGuard {
 	return &DefaultScopeGuard{}
 }
 
-// MatchRequestConstraints checks if request matches token constraints
+// MatchRequestConstraints checks if request matches token constraints.
 func (g *DefaultScopeGuard) MatchRequestConstraints(constraints *wire.Constraints, req *RequestContext) bool {
 	if constraints == nil {
-		// No constraints = any request allowed (but action_hash still must match)
 		return true
 	}
 
-	// Check method
 	if constraints.Method != "" && !strings.EqualFold(constraints.Method, req.Method) {
 		return false
 	}
 
-	// Check path
 	if constraints.Path != "" && constraints.Path != req.Path {
 		return false
 	}
 
-	// Check tool_name
 	if constraints.ToolName != "" && constraints.ToolName != req.ToolName {
 		return false
 	}
 
-	// Check payload_hash
 	if constraints.PayloadHash != "" && constraints.PayloadHash != req.PayloadHash {
 		return false
 	}
@@ -46,21 +40,53 @@ func (g *DefaultScopeGuard) MatchRequestConstraints(constraints *wire.Constraint
 	return true
 }
 
-// CheckBoundary evaluates boundary matrix per hacp-spec/boundary-matrix.md
-func (g *DefaultScopeGuard) CheckBoundary(scope *wire.ScopeGrant, req *RequestContext) bool {
-	if scope == nil {
+// CheckBoundary evaluates boundary matrix per hacp-spec/boundary-matrix.md.
+// Returns false if any boundary crossing results in DENY.
+// For MVP, CHECKPOINT and REAUTHORIZE are treated as ALLOW (future: proper handling).
+func (g *DefaultScopeGuard) CheckBoundary(scopeGrant *wire.ScopeGrant, req *RequestContext) bool {
+	if scopeGrant == nil {
 		return false
 	}
 
-	// Boundary matrix checks would go here
-	// For MVP, we accept if scope is present
-	// Full implementation would check:
-	// - audience crossing (internal → external)
-	// - reversibility changes
-	// - externality changes
-	// - data_class escalation
-	// - quantity limits
-	// - destination allowlist
+	// If no proposed action is available, skip boundary check
+	// (this handles HTTP proxy mode without proposed_action)
+	// Note: len() for nil slices is defined as zero, so nil check is redundant.
+	if len(req.ProposedAction) == 0 {
+		return true
+	}
+
+	// Parse proposed action attributes
+	attrs, err := scope.ParseProposedActionAttributes(req.ProposedAction)
+	if err != nil {
+		return false // Fail closed on parse error
+	}
+
+	if attrs == nil {
+		return true // No attributes to check
+	}
+
+	// Check each attribute against the boundary matrix
+	checks := []struct {
+		attr          scope.AttributeType
+		scopeValues   []string
+		proposedValue string
+	}{
+		{scope.AttrAudience, scopeGrant.Audiences, attrs.Audience},
+		{scope.AttrReversibility, scopeGrant.Reversibility, attrs.Reversibility},
+		{scope.AttrExternality, scopeGrant.Externality, attrs.Externality},
+		{scope.AttrDataClass, scopeGrant.DataClasses, attrs.DataClass},
+		{scope.AttrVerb, scopeGrant.Verbs, attrs.Verb},
+		{scope.AttrResourceClass, scopeGrant.ResourceClasses, attrs.ResourceClass},
+	}
+
+	for _, check := range checks {
+		action := scope.EvaluateBoundaryCrossing(check.attr, check.scopeValues, check.proposedValue)
+		if action == scope.ActionDeny {
+			return false
+		}
+		// For ALLOW, CHECKPOINT, REAUTHORIZE → continue
+		// Future: return Action instead of bool for proper CHECKPOINT/REAUTHORIZE handling
+	}
 
 	return true
 }

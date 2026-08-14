@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -158,12 +157,6 @@ func (r *Runner) prepareVectorState(vectorID string) {
 		return
 	}
 
-	log.Printf(
-		"[DEBUG %s] new vector detected; resetting per-vector state (previous=%q)",
-		vectorID,
-		r.currentVectorID,
-	)
-
 	r.budgetLedger.Reset()
 
 	r.currentVectorID = vectorID
@@ -172,13 +165,6 @@ func (r *Runner) prepareVectorState(vectorID string) {
 // HandleRequest processes a single runner protocol request.
 func (r *Runner) HandleRequest(req Request) Response {
 	start := time.Now()
-
-	log.Printf(
-		"[DEBUG %s] request received: operation=%s protocol=%s",
-		req.VectorID,
-		req.Operation,
-		req.ProtocolVersion,
-	)
 
 	// Isolate mutable conformance state between vectors.
 	r.prepareVectorState(req.VectorID)
@@ -225,26 +211,6 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 		return r.errorResponse("missing intent_envelope")
 	}
 
-	log.Printf(
-		"[DEBUG %s] input parsed: envelope=%d bytes action=%d bytes token=%d bytes policy_context=%d bytes",
-		req.VectorID,
-		len(input.IntentEnvelope),
-		len(input.ProposedAction),
-		len(input.DecisionToken),
-		len(input.PolicyContext),
-	)
-	log.Printf(
-		"[DEBUG %s] policy_context RAW: %s",
-		req.VectorID,
-		string(input.PolicyContext),
-	)
-
-	log.Printf(
-		"[DEBUG %s] checkpoint RAW: %s",
-		req.VectorID,
-		string(input.Checkpoint),
-	)
-
 	// Policy preflight runs before full envelope parsing.
 	// It extracts only the fields required to determine whether
 	// a system principal must stop for human authorization.
@@ -254,11 +220,6 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 	}
 
 	if err := json.Unmarshal(input.IntentEnvelope, &envPreflight); err != nil {
-		log.Printf(
-			"[DEBUG %s] envelope preflight parse ERROR: %v",
-			req.VectorID,
-			err,
-		)
 
 		return Response{
 			ProtocolVersion: ProtocolVersion,
@@ -273,11 +234,6 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 	}
 
 	if err := json.Unmarshal(input.ProposedAction, &actionPreflight); err != nil {
-		log.Printf(
-			"[DEBUG %s] action preflight parse ERROR: %v",
-			req.VectorID,
-			err,
-		)
 
 		return Response{
 			ProtocolVersion: ProtocolVersion,
@@ -294,11 +250,6 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 
 	if len(input.PolicyContext) > 0 {
 		if err := json.Unmarshal(input.PolicyContext, &policyPreflight); err != nil {
-			log.Printf(
-				"[DEBUG %s] policy preflight parse ERROR: %v",
-				req.VectorID,
-				err,
-			)
 
 			return Response{
 				ProtocolVersion: ProtocolVersion,
@@ -331,11 +282,6 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 			if waitStartedAt > 0 &&
 				policyPreflight.CurrentTime > waitStartedAt+policyPreflight.CheckpointTimeoutSeconds {
 
-				log.Printf(
-					"[DEBUG %s] policy preflight: human authorization timeout exceeded -> DENY",
-					req.VectorID,
-				)
-
 				return Response{
 					ProtocolVersion: ProtocolVersion,
 					Decision:        "DENY",
@@ -343,12 +289,6 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 				}
 			}
 		}
-
-		log.Printf(
-			"[DEBUG %s] policy preflight: system principal verb=%q requires human authorization -> CHECKPOINT",
-			req.VectorID,
-			actionPreflight.Verb,
-		)
 
 		return Response{
 			ProtocolVersion: ProtocolVersion,
@@ -360,11 +300,6 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 	// Parse envelope from RAW bytes.
 	env, err := wire.ParseIntentEnvelope(input.IntentEnvelope)
 	if err != nil {
-		log.Printf(
-			"[DEBUG %s] envelope parse ERROR: %v",
-			req.VectorID,
-			err,
-		)
 
 		return Response{
 			ProtocolVersion: ProtocolVersion,
@@ -374,57 +309,14 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 	}
 
 	// Signature/canonicalization diagnostics.
-	log.Printf(
-		"[DEBUG %s] envelope parsed OK: id=%s signer=%s principal=%s principal_kind=%s",
-		req.VectorID,
-		env.EnvelopeID,
-		env.SignerKeyID,
-		env.Principal,
-		env.PrincipalKind,
-	)
-
-	canonicalPayload := env.CanonicalPayload()
-
-	log.Printf(
-		"[DEBUG %s] canonical payload FULL: %s",
-		req.VectorID,
-		string(canonicalPayload),
-	)
-
-	log.Printf(
-		"[DEBUG %s] canonical payload SHA-256: %x",
-		req.VectorID,
-		sha256.Sum256(canonicalPayload),
-	)
-
-	log.Printf(
-		"[DEBUG %s] signature hex: %x",
-		req.VectorID,
-		env.Signature,
-	)
-
-	log.Printf(
-		"[DEBUG %s] signature len: %d",
-		req.VectorID,
-		len(env.Signature),
-	)
 
 	// Parse decision token from RAW bytes, if actually present.
 	var tok *wire.DecisionToken
 
 	if !isJSONNull(input.DecisionToken) {
-		log.Printf(
-			"[DEBUG %s] parsing decision token",
-			req.VectorID,
-		)
 
 		tok, err = wire.ParseDecisionToken(input.DecisionToken)
 		if err != nil {
-			log.Printf(
-				"[DEBUG %s] decision token parse ERROR: %v",
-				req.VectorID,
-				err,
-			)
 
 			return Response{
 				ProtocolVersion: ProtocolVersion,
@@ -433,17 +325,7 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 			}
 		}
 
-		log.Printf(
-			"[DEBUG %s] decision token parsed OK: token_id=%s action_hash=%s",
-			req.VectorID,
-			tok.TokenID,
-			tok.ActionHash,
-		)
 	} else {
-		log.Printf(
-			"[DEBUG %s] no decision token",
-			req.VectorID,
-		)
 	}
 
 	// ============================================================
@@ -458,11 +340,6 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 		var pc policyContextJSON
 
 		if err := json.Unmarshal(input.PolicyContext, &pc); err != nil {
-			log.Printf(
-				"[DEBUG %s] policy_context parse ERROR: %v",
-				req.VectorID,
-				err,
-			)
 
 			return Response{
 				ProtocolVersion: ProtocolVersion,
@@ -477,14 +354,6 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 		policy.ConsequenceClass = pc.ConsequenceClass
 		policy.RiskClass = pc.RiskClass
 
-		log.Printf(
-			"[DEBUG %s] policy_context parsed: clock=%d human_required=%v consequence_class=%q risk_class=%q",
-			req.VectorID,
-			policy.Clock,
-			policy.HumanRequired,
-			policy.ConsequenceClass,
-			policy.RiskClass,
-		)
 	}
 	// ============================================================
 	// Parse checkpoint
@@ -519,11 +388,6 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 		var cp checkpointJSON
 
 		if err := json.Unmarshal(checkpointRaw, &cp); err != nil {
-			log.Printf(
-				"[DEBUG %s] checkpoint parse ERROR: %v",
-				req.VectorID,
-				err,
-			)
 
 			return Response{
 				ProtocolVersion: ProtocolVersion,
@@ -579,22 +443,9 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 		Checkpoint:     checkpoint,
 	}
 
-	log.Printf(
-		"[DEBUG %s] request context: clock=%d human_required=%v checkpoint_present=%v",
-		req.VectorID,
-		reqCtx.EffectiveClock(),
-		reqCtx.HumanRequired(),
-		reqCtx.Checkpoint != nil,
-	)
-
 	// ============================================================
 	// Evaluate
 	// ============================================================
-
-	log.Printf(
-		"[DEBUG %s] pipeline Evaluate START",
-		req.VectorID,
-	)
 
 	decision := r.pipeline.Evaluate(
 		context.Background(),
@@ -604,14 +455,6 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 	)
 
 	latency := time.Since(start).Nanoseconds()
-
-	log.Printf(
-		"[DEBUG %s] pipeline Evaluate END: outcome=%q allow=%v reason=%q",
-		req.VectorID,
-		decision.Outcome,
-		decision.Allow,
-		decision.ReasonCode,
-	)
 
 	// ============================================================
 	// Build runner protocol response
@@ -653,28 +496,11 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 		}
 
 		if err := json.Unmarshal(input.ProvenanceEvent, &prov); err != nil {
-			log.Printf(
-				"[DEBUG %s] provenance_event parse ERROR: %v",
-				req.VectorID,
-				err,
-			)
 		} else if prov.EventID != "" {
 			resp.ProvenanceID = prov.EventID
 
-			log.Printf(
-				"[DEBUG %s] provenance event bound: id=%s",
-				req.VectorID,
-				prov.EventID,
-			)
 		}
 	}
-	log.Printf(
-		"[DEBUG %s] runner response: decision=%s reason_codes=%v latency_ns=%d",
-		req.VectorID,
-		resp.Decision,
-		resp.ReasonCodes,
-		latency,
-	)
 
 	return resp
 }
@@ -717,13 +543,6 @@ func (r *Runner) handleRevoke(req Request) Response {
 		)
 	}
 
-	log.Printf(
-		"[DEBUG %s] revoked %s: %s",
-		req.VectorID,
-		targetKind,
-		targetID,
-	)
-
 	return Response{
 		ProtocolVersion: ProtocolVersion,
 		Decision:        "OK",
@@ -732,10 +551,6 @@ func (r *Runner) handleRevoke(req Request) Response {
 }
 
 func (r *Runner) handleExplain(req Request) Response {
-	log.Printf(
-		"[DEBUG %s] explain requested",
-		req.VectorID,
-	)
 
 	return Response{
 		ProtocolVersion: ProtocolVersion,
@@ -824,33 +639,12 @@ func main() {
 			continue
 		}
 
-		log.Printf(
-			"[DEBUG %s] dispatching request",
-			req.VectorID,
-		)
-
 		resp := runner.HandleRequest(req)
 
-		log.Printf(
-			"[DEBUG %s] writing response: decision=%s reasons=%v",
-			req.VectorID,
-			resp.Decision,
-			resp.ReasonCodes,
-		)
-
 		if err := writeResponse(stdout, resp); err != nil {
-			log.Printf(
-				"[DEBUG %s] failed to write response: %v",
-				req.VectorID,
-				err,
-			)
 			break
 		}
 
-		log.Printf(
-			"[DEBUG %s] response written successfully",
-			req.VectorID,
-		)
 	}
 
 	if err := scanner.Err(); err != nil {
