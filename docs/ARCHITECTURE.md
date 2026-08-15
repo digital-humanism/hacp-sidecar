@@ -327,39 +327,34 @@ to bypass controls. Mitigations include:
 
 Full threat model: [`hacp-spec/threat-model.md`](https://github.com/digital-humanism/hacp-spec/blob/main/threat-model.md) sections 3.6–3.14.
 
+## Current Status
+
+**Gates A–D closed.** 
+
+- Gate A: 38/38 conformance vectors pass
+- Gate B: Data-driven boundary matrix implemented in `internal/scope/matrix.go`
+- Gate C: Docker Compose reference deployment with demo scenarios
+- Gate D: p99 overhead validated (see [postmortem](postmortems/gate-d-benchmark.md) and [technical report](postmortems/gate-d-performance-validation.md))
+
 ## Future Work
 
-### Gate B: Boundary Matrix
+### Gate E: Distributed Control Plane
 
-Replace `DefaultScopeGuard` with data-driven boundary matrix:
-- Define boundary transitions (e.g., `internal → external = REAUTHORIZE`)
-- Implement matrix in `internal/scope/matrix.go`
-- Add negative vectors for boundary violations
+Replace the current HTTP-based control plane with authenticated gRPC streaming for real-time policy management.
 
-### Gate C: Docker Compose
+**Planned features:**
+- Bidirectional streaming for real-time revocations (envelopes, tokens, keys)
+- Policy snapshot sync on sidecar startup
+- Delta updates for incremental policy changes
+- Health checks and operational telemetry
+- Distributed budget ledger with eventual consistency
 
-Reference deployment with:
-- Agent container (sends requests through sidecar)
-- Sidecar container (enforcement)
-- Mock control plane (revocation API)
-- Mock upstream (receives forwarded requests)
-- Demo script showing ALLOW / REAUTHORIZE / DENY scenarios
-
-### Gate D: p99 Benchmark
-
-Performance benchmarking:
-- Measure allow-path latency (p50, p95, p99)
-- Compare with baseline (no sidecar)
-- Document overhead in milliseconds
-- Profile CPU and memory usage
-
-### Gate E: gRPC Control Plane
-
-Replace mock HTTP revocation API with streaming gRPC:
-- Bidirectional streaming for real-time revocations
-- Policy snapshot sync on startup
-- Delta updates for policy changes
-- Health checks and telemetry
+**Implementation plan:**
+- `proto/controlplane.proto` — gRPC service definitions
+- `internal/controlplane/client.go` — streaming gRPC client
+- `internal/evaluate/revocation.go` — integrate streaming revocation updates
+- `cmd/control-plane/` — reference control plane server
+- Hybrid architecture: periodic snapshot pull + push notifications for instant revocation
 
 ## References
 
