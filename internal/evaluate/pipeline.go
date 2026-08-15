@@ -59,7 +59,6 @@ func (p *Pipeline) Evaluate(
 	tok *wire.DecisionToken,
 	req *RequestContext,
 ) Decision {
-
 	_ = ctx // reserved for future cancellation / tracing
 
 	// ============================================================
@@ -88,7 +87,6 @@ func (p *Pipeline) Evaluate(
 		now := req.EffectiveClock()
 
 		switch cp.State {
-
 		case CheckpointStateOpen:
 			if cp.ExpiresAt > 0 && now > cp.ExpiresAt {
 				return DenyDecision(
@@ -188,6 +186,7 @@ func (p *Pipeline) Evaluate(
 	// ============================================================
 
 	now := req.EffectiveClock()
+
 	if now <= 0 {
 		now = time.Now().Unix()
 	}
@@ -209,14 +208,9 @@ func (p *Pipeline) Evaluate(
 	// Step 6: Existing checkpoint state
 	// ============================================================
 
-	//
-	// Checkpoint state takes precedence over starting a new
-	// autonomous or token-less action.
-	//
 	if req.Checkpoint != nil {
 		cp := req.Checkpoint
 
-		// Explicit EXPIRED state.
 		if cp.State == CheckpointStateExpired {
 			return DenyDecision(
 				ReasonCheckpointExpired,
@@ -224,7 +218,6 @@ func (p *Pipeline) Evaluate(
 			)
 		}
 
-		// Time-based expiry.
 		if cp.ExpiresAt > 0 && now > cp.ExpiresAt+skew {
 			return DenyDecision(
 				ReasonCheckpointExpired,
@@ -236,7 +229,6 @@ func (p *Pipeline) Evaluate(
 			)
 		}
 
-		// Explicit checkpoint rejection.
 		if cp.State == CheckpointStateResolvedDeny {
 			return DenyDecision(
 				ReasonCheckpointDenied,
@@ -244,7 +236,6 @@ func (p *Pipeline) Evaluate(
 			)
 		}
 
-		// OPEN means execution is still waiting for authority.
 		if cp.State == CheckpointStateOpen {
 			return CheckpointDecision(
 				ReasonCheckpointOpen,
@@ -252,7 +243,6 @@ func (p *Pipeline) Evaluate(
 			)
 		}
 
-		// System principals must not approve their own checkpoint.
 		if cp.State == CheckpointStateResolvedAllow &&
 			cp.ResolvedByKind == "system" {
 
@@ -263,9 +253,6 @@ func (p *Pipeline) Evaluate(
 				),
 			)
 		}
-
-		// APPROVED by a human is allowed to continue through
-		// normal token verification below.
 	}
 
 	// ============================================================
@@ -273,10 +260,6 @@ func (p *Pipeline) Evaluate(
 	// ============================================================
 
 	if tok == nil {
-
-		// --------------------------------------------------------
-		// 7A: Explicit human-required policy
-		// --------------------------------------------------------
 
 		if req.HumanRequired() {
 			return CheckpointDecision(
@@ -286,10 +269,6 @@ func (p *Pipeline) Evaluate(
 				),
 			)
 		}
-
-		// --------------------------------------------------------
-		// 7B: System autonomous execution
-		// --------------------------------------------------------
 
 		if env.PrincipalKind == "system" {
 
@@ -311,7 +290,6 @@ func (p *Pipeline) Evaluate(
 				)
 			}
 
-			// Scope containment still applies to autonomous actions.
 			if !p.ScopeGuard.CheckBoundary(
 				env.Scope,
 				req,
@@ -324,7 +302,6 @@ func (p *Pipeline) Evaluate(
 				)
 			}
 
-			// Consume one autonomous action.
 			if !p.BudgetLedger.ConsumeAutonomy(
 				env.EnvelopeID,
 				env.AutonomyBudget.MaxActions,
@@ -338,7 +315,6 @@ func (p *Pipeline) Evaluate(
 				)
 			}
 
-			// Provenance MUST be accepted before forwarding.
 			if err := p.ProvenanceLog.Accept(
 				env,
 				nil,
@@ -356,14 +332,6 @@ func (p *Pipeline) Evaluate(
 			return AllowDecision()
 		}
 
-		// --------------------------------------------------------
-		// 7C: Human principal without token
-		// --------------------------------------------------------
-
-		//
-		// A human envelope alone is not sufficient to create a
-		// cryptographically bound ALLOW decision.
-		//
 		return DenyDecision(
 			ReasonPolicyDenied,
 			errors.New(
@@ -377,6 +345,7 @@ func (p *Pipeline) Evaluate(
 	// ============================================================
 
 	tokKey, err := p.KeyResolver.ResolveKey(tok.SignerKeyID)
+
 	if err != nil || tokKey == nil {
 		return DenyDecision(
 			ReasonSignatureFailure,
@@ -461,11 +430,12 @@ func (p *Pipeline) Evaluate(
 	// ============================================================
 
 	switch tok.Decision {
-
 	case "DENY":
 		return DenyDecision(
 			ReasonPolicyDenied,
-			errors.New("decision token explicitly denies action"),
+			errors.New(
+				"decision token explicitly denies action",
+			),
 		)
 
 	case "CHECKPOINT":
@@ -477,7 +447,7 @@ func (p *Pipeline) Evaluate(
 		)
 
 	case "ALLOW":
-		// Continue with binding / constraints.
+		// Continue.
 
 	default:
 		return DenyDecision(
@@ -496,13 +466,17 @@ func (p *Pipeline) Evaluate(
 	if len(req.ProposedAction) == 0 {
 		return DenyDecision(
 			ReasonInvalidAction,
-			errors.New("missing proposed action"),
+			errors.New(
+				"missing proposed action",
+			),
 		)
 	}
 
-	canonicalAction, err := wire.CanonicalizeJSON(
-		req.ProposedAction,
-	)
+	canonicalAction, err :=
+		wire.CanonicalizeJSON(
+			req.ProposedAction,
+		)
+
 	if err != nil {
 		return DenyDecision(
 			ReasonInvalidAction,
@@ -513,9 +487,10 @@ func (p *Pipeline) Evaluate(
 		)
 	}
 
-	computedActionHash := wire.SHA256Hex(
-		canonicalAction,
-	)
+	computedActionHash :=
+		wire.SHA256Hex(
+			canonicalAction,
+		)
 
 	if tok.ActionHash != computedActionHash {
 		return DenyDecision(
@@ -615,6 +590,12 @@ func (p *Pipeline) Evaluate(
 // that may still call the old helper.
 //
 // New code should prefer DenyDecision().
-func deny(reason string, err error) Decision {
-	return DenyDecision(reason, err)
+func deny(
+	reason string,
+	err error,
+) Decision {
+	return DenyDecision(
+		reason,
+		err,
+	)
 }

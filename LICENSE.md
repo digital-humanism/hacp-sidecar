@@ -2,7 +2,7 @@
 
 This repository contains the HACP Enforcement Sidecar implementation, licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**, with Commercial Dual Licensing available for enterprise deployments, closed-source embedding, and OEM integration.
 
-For commercial licensing inquiries, contact: `licensing@digital-humanism.example` (placeholder).
+For commercial licensing inquiries, contact: `digital.humanism.collective@protonmail.com` (placeholder).
 
 ### Relationship to other HACP repositories
 

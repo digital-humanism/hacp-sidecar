@@ -34,3 +34,28 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Build artifacts
+*.exe
+*.out
+
+# Runtime data
+provenance.jsonl
+
+# Generated benchmark data
+benchmarks/tokens.jsonl
+
+# Python
+__pycache__/
+*.pyc
+
+# IDE / OS
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Benchmark artifacts
+tokens.jsonl
+benchmarks/tokens.jsonl
+benchmarks/results/
+benchmarks/*.exe
