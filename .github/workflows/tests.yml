@@ -1,0 +1,43 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gate-e:
+    name: Gate E distributed control plane
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout hacp-sidecar
+        uses: actions/checkout@v4
+        with:
+          path: hacp-sidecar
+
+      - name: Checkout hacp-spec
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/hacp-spec
+          path: hacp-spec
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: hacp-sidecar/go.mod
+          cache-dependency-path: hacp-sidecar/go.sum
+
+      - name: Download dependencies
+        working-directory: hacp-sidecar
+        run: go mod download
+
+      - name: Gate E integration tests
+        working-directory: hacp-sidecar
+        run: go test ./internal/controlplane -count=1 -v
+
+      - name: Full regression
+        working-directory: hacp-sidecar
+        run: go test ./... -count=1

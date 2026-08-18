@@ -265,20 +265,22 @@ func CheckpointDecision(reason string, err error) Decision {
 // Reason codes
 // ============================================================
 
-// Reason codes from hacp-spec/error-model.md.
+// Reason codes from hacp-spec/error-model.md and distributed control-plane
+// runtime safety semantics.
 const (
-	ReasonInvalidEnvelope  = "INVALID_ENVELOPE"
-	ReasonInvalidAction    = "INVALID_ACTION"
-	ReasonKeyRevoked       = "KEY_REVOKED"
-	ReasonSignatureFailure = "SIGNATURE_FAILURE"
-	ReasonEnvelopeRevoked  = "ENVELOPE_REVOKED"
-	ReasonTokenRevoked     = "TOKEN_REVOKED"
-	ReasonEnvelopeExpired  = "ENVELOPE_EXPIRED"
-	ReasonTokenExpired     = "TOKEN_EXPIRED"
-	ReasonScopeExceeded    = "SCOPE_EXCEEDED"
-	ReasonBudgetExhausted  = "BUDGET_EXHAUSTED"
-	ReasonTraceabilityFail = "TRACEABILITY_FAILURE"
-	ReasonPolicyDenied     = "POLICY_DENIED"
+	ReasonInvalidEnvelope   = "INVALID_ENVELOPE"
+	ReasonInvalidAction     = "INVALID_ACTION"
+	ReasonKeyRevoked        = "KEY_REVOKED"
+	ReasonSignatureFailure  = "SIGNATURE_FAILURE"
+	ReasonEnvelopeRevoked   = "ENVELOPE_REVOKED"
+	ReasonTokenRevoked      = "TOKEN_REVOKED"
+	ReasonControlStateStale = "CONTROL_STATE_STALE"
+	ReasonEnvelopeExpired   = "ENVELOPE_EXPIRED"
+	ReasonTokenExpired      = "TOKEN_EXPIRED"
+	ReasonScopeExceeded     = "SCOPE_EXCEEDED"
+	ReasonBudgetExhausted   = "BUDGET_EXHAUSTED"
+	ReasonTraceabilityFail  = "TRACEABILITY_FAILURE"
+	ReasonPolicyDenied      = "POLICY_DENIED"
 
 	// Checkpoint / human-authorization semantics.
 	ReasonHumanRequired      = "HUMAN_REQUIRED"

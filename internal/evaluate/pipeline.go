@@ -17,6 +17,8 @@ type Pipeline struct {
 	ScopeGuard    ScopeGuard
 	ProvenanceLog ProvenanceWriter
 
+	ControlState ControlStateGuard
+
 	// Configuration.
 	MaxClockSkewSeconds      int64
 	MaxRevocationStalenessMs int64
@@ -77,6 +79,32 @@ func (p *Pipeline) Evaluate(
 			ReasonInvalidAction,
 			errors.New("nil request context"),
 		)
+	}
+
+	// ============================================================
+	// Distributed control-state freshness
+	// ============================================================
+	//
+	// Standalone/conformance execution may leave ControlState nil.
+	// When configured, stale distributed control state fails closed
+	// before authority evaluation continues.
+	if p.ControlState != nil {
+		controlNow := req.EffectiveClock()
+
+		var controlTime time.Time
+
+		if controlNow > 0 {
+			controlTime = time.Unix(controlNow, 0)
+		} else {
+			controlTime = time.Now()
+		}
+
+		if !p.ControlState.IsFresh(controlTime) {
+			return DenyDecision(
+				ReasonControlStateStale,
+				errors.New("distributed control state is stale"),
+			)
+		}
 	}
 
 	// Checkpoint state is evaluated before credential verification.
