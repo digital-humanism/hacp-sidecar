@@ -4,13 +4,11 @@ Enforcement sidecar for the **Human Agency Continuity Protocol (HACP)**.
 
 Implements the HACP Enforcement profile defined by [`hacp-spec`](https://github.com/digital-humanism/hacp-spec).
 
-HACP Sidecar acts as a fail-closed enforcement point between an AI agent and external tools or services. A request is forwarded upstream only after its HACP intent, authorization token, scope, boundary conditions, budget, revocation state, and provenance requirements have been successfully validated.
+HACP Sidecar is a fail-closed enforcement point between an AI agent and protected tools or services. A request is forwarded upstream only after its HACP intent, authorization token, scope, semantic boundary conditions, budget, revocation state, distributed control-state freshness, and provenance requirements have been validated.
 
 ---
 
 ## Overview
-
-HACP Sidecar provides a runtime enforcement boundary for agent actions.
 
 HTTP and MCP traffic explicitly routed through the sidecar carries:
 
@@ -19,40 +17,42 @@ HTTP and MCP traffic explicitly routed through the sidecar carries:
 
 The sidecar:
 
-1. parses and validates the HACP headers;
+1. parses and validates HACP inputs;
 2. resolves signer keys;
-3. evaluates key, envelope, and token revocation;
+3. evaluates signer, envelope, and token revocation;
 4. verifies Ed25519 signatures;
-5. validates expiry and request bindings;
+5. validates expiry and request/action bindings;
 6. evaluates semantic scope and boundary transitions;
-7. checks budget/replay state;
-8. records provenance;
-9. forwards an allowed request to the configured upstream service;
-10. denies invalid requests with deterministic HACP reason codes.
+7. evaluates human/checkpoint semantics;
+8. checks budget and replay state;
+9. checks distributed control-state freshness when enabled;
+10. records provenance;
+11. forwards allowed requests to the configured upstream;
+12. denies invalid or unsafe requests with deterministic HACP reason codes.
 
-The enforcement pipeline is strictly **fail-closed**.
+The enforcement pipeline is strictly **fail closed**.
 
 ---
 
-## Project Status
+# Project Status
 
-**Phase 4 MVP — Gates A–D closed**
+**Phase 4 — Gates A–E closed**
 
 | Gate | Focus | Status |
 |---|---|---|
-| A | Protocol correctness — HACP-Core conformance | ✅ Closed |
-| B | Semantic completeness — boundary matrix | ✅ Closed |
-| C | Deployability — native/reference sidecar topology | ✅ Closed |
-| D | Operational viability — latency and throughput | ✅ Closed |
-| E | Distributed management — authenticated control plane | ⏸ Pending |
+| **A** | Protocol correctness — HACP-Core conformance | ✅ Closed |
+| **B** | Semantic completeness — boundary matrix | ✅ Closed |
+| **C** | Deployability — native/reference topology | ✅ Closed |
+| **D** | Operational viability — latency / throughput | ✅ Closed |
+| **E** | Distributed management — gRPC control plane | ✅ Closed |
 
-Current conformance result:
+Current canonical conformance result:
 
 ```text
 RESULTS: 38/38 passed
 ```
 
-Current Gate D acceptance result:
+Gate D reference acceptance:
 
 ```text
 Serial unique-token p99 overhead: 0.59 ms
@@ -60,87 +60,103 @@ Target: < 5 ms
 Result: PASS
 ```
 
+Gate E distributed-control-plane validation includes:
+
+```text
+revocation propagation        PASS
+reconnect + replay            PASS
+bounded exponential backoff   PASS
+ResetRequired recovery        PASS
+heartbeat freshness           PASS
+stale fail-closed             PASS
+two-sidecar convergence       PASS
+full Go regression            PASS
+```
+
 ---
 
-## Implemented
+# Implemented
 
-### Protocol enforcement
+## Protocol enforcement
 
 - ✅ HACP Intent Envelope parsing and validation
 - ✅ HACP Decision Token parsing and validation
 - ✅ Ed25519 signature verification
 - ✅ JCS-compatible canonicalization
-- ✅ Signer-key resolution
-- ✅ Signer-key revocation checks
-- ✅ Envelope revocation checks
-- ✅ Decision-token revocation checks
-- ✅ Envelope and token expiry validation
+- ✅ signer-key resolution
+- ✅ signer-key revocation
+- ✅ envelope revocation
+- ✅ decision-token revocation
+- ✅ envelope/token expiry validation
 - ✅ `action_hash` binding
 - ✅ HTTP method/path constraint binding
-- ✅ Principal and policy-context handling
-- ✅ Deterministic HACP denial reason codes
-- ✅ Strict fail-closed evaluation
+- ✅ principal and policy-context handling
+- ✅ deterministic denial reason codes
+- ✅ strict fail-closed evaluation
 
-### Semantic enforcement
+## Semantic enforcement
 
-- ✅ Scope containment
-- ✅ Data-driven boundary matrix
-- ✅ Fail-closed handling of unknown security-relevant attributes
-- ✅ Human-required boundary handling
-- ✅ Semantic boundary-crossing detection
+- ✅ scope containment
+- ✅ data-driven boundary matrix
+- ✅ fail-closed unknown security-relevant attributes
+- ✅ human-required boundary handling
+- ✅ semantic boundary-crossing detection
 
-### Runtime state
+## Runtime state
 
-- ✅ Token budget enforcement
-- ✅ Replay/budget ledger
-- ✅ Local revocation state
-- ✅ Provenance ring buffer
-- ✅ Asynchronous provenance flush
+- ✅ token budget enforcement
+- ✅ autonomy budget enforcement
+- ✅ replay/budget ledger
+- ✅ local revocation state
+- ✅ provenance ring buffer
+- ✅ asynchronous provenance flush
 
-### Proxy/runtime
+## Distributed control plane
 
-- ✅ Real upstream HTTP forwarding
-- ✅ Dedicated HTTP transport/client
+- ✅ gRPC control-plane contract
+- ✅ authoritative monotonic revision journal
+- ✅ atomic revocation snapshots
+- ✅ resumable server-streaming revocation feed
+- ✅ duplicate/old event idempotency
+- ✅ revision-gap detection
+- ✅ reconnect + replay from `last_seen_revision`
+- ✅ bounded exponential reconnect backoff
+- ✅ `ResetRequired` + snapshot recovery
+- ✅ heartbeat-based freshness
+- ✅ unsafe-state tracking
+- ✅ stale fail-closed via `CONTROL_STATE_STALE`
+- ✅ real evaluator revocation propagation
+- ✅ multi-sidecar convergence
+
+## Proxy/runtime
+
+- ✅ real upstream HTTP forwarding
+- ✅ dedicated HTTP transport/client
 - ✅ HTTP/1.1 persistent connections
-- ✅ Connection pooling
-- ✅ Hop-by-hop header filtering
-- ✅ Upstream configuration through environment variables
-- ✅ Native/reference deployment topology
+- ✅ connection pooling
+- ✅ hop-by-hop header filtering
+- ✅ environment-driven upstream configuration
+- ✅ native/reference deployment topology
 
-### Verification
+## Verification
 
 - ✅ 38/38 HACP-Core conformance vectors
-- ✅ Unit test suite
+- ✅ Gate E control-plane integration suite
+- ✅ full `go test ./...`
 - ✅ `go vet`
-- ✅ Serial Gate D benchmark
-- ✅ Concurrent rotating-token benchmark
-- ✅ High-rate rotating-token benchmark
-- ✅ Shared-token load characterization
+- ✅ serial Gate D benchmark
+- ✅ concurrent rotating-token benchmark
+- ✅ high-rate rotating-token benchmark
+- ✅ shared-token load characterization
+- ✅ GitHub Actions regression workflow
 
 ---
 
-## Pending
-
-### Gate E — Distributed Management
-
-The next major implementation gate covers:
-
-- ⏸ authenticated gRPC control plane;
-- ⏸ revocation propagation/streaming;
-- ⏸ bounded revocation freshness;
-- ⏸ distributed revocation state;
-- ⏸ distributed budget/replay state;
-- ⏸ control-plane reconnect/recovery behavior.
-
-The current HTTP control-plane/revocation paths are reference/MVP mechanisms and are not the final Gate E transport.
-
----
-
-## Architecture
+# Architecture
 
 ```text
 ┌─────────────┐
-│   Agent     │
+│    Agent    │
 │ (untrusted) │
 └──────┬──────┘
        │
@@ -149,53 +165,187 @@ The current HTTP control-plane/revocation paths are reference/MVP mechanisms and
        │ X-HACP-Decision-Token
        ▼
 ┌─────────────────────────────────────────────┐
-│                 HACP Sidecar                │
+│                HACP Sidecar                 │
 │                                             │
 │  1. Parse / schema validation               │
-│  2. Token decision                          │
-│  3. Resolve signer keys                     │
-│  4. Key revocation                          │
-│  5. Ed25519 signature verification          │
-│  6. Envelope/token revocation               │
-│  7. Expiry                                  │
-│  8. Action hash binding                     │
-│  9. Request constraints                     │
-│ 10. Scope containment                       │
-│ 11. Boundary matrix                         │
-│ 12. Human/checkpoint semantics              │
-│ 13. Budget / replay state                   │
+│  2. Resolve signer keys                     │
+│  3. Key revocation                          │
+│  4. Ed25519 verification                    │
+│  5. Envelope/token revocation               │
+│  6. Expiry                                  │
+│  7. Action hash binding                     │
+│  8. Request constraints                     │
+│  9. Scope containment                       │
+│ 10. Boundary matrix                         │
+│ 11. Human/checkpoint semantics              │
+│ 12. Budget / replay                         │
+│ 13. Control-state freshness                 │
 │ 14. Provenance acceptance                   │
 │ 15. Forward or DENY                         │
-└──────────────────┬──────────────────────────┘
-                   │
-                   │ HTTP
-                   ▼
-             ┌────────────┐
-             │  Upstream  │
-             │   Tool     │
-             └────────────┘
+└──────────────┬──────────────────────────────┘
+               │
+               │ HTTP
+               ▼
+         ┌────────────┐
+         │  Upstream  │
+         │    Tool    │
+         └────────────┘
 
-                   ▲
-                   │
-                   │ Control / revocation
-                   │
-             ┌─────────────┐
-             │   Control   │
-             │    Plane    │
-             └─────────────┘
+               ▲
+               │ gRPC snapshot + revoke stream
+               │
+        ┌──────┴────────┐
+        │ Control Plane │
+        └───────────────┘
 ```
 
-The control-plane connection shown above is currently represented by the MVP/reference control mechanism. Authenticated gRPC streaming is planned for Gate E.
+The control plane is asynchronous with respect to request authorization: the sidecar evaluates requests from locally materialized control state rather than synchronously consulting the control plane on every action.
 
 ---
 
-## Enforcement Model
+# Distributed Control-Plane Model
+
+Gate E extends the sidecar from a local enforcement process into a distributed enforcement replica.
+
+Each sidecar maintains:
+
+- a local revocation store;
+- a highest fully materialized revision;
+- a control-state freshness timestamp;
+- connection state;
+- unsafe-state status.
+
+The authoritative control plane provides snapshots, ordered revocation events, heartbeats, replay, and explicit reset recovery.
+
+---
+
+## Revision semantics
+
+For a sidecar whose highest fully materialized revision is `R`:
+
+```text
+event.revision == R + 1
+→ apply
+→ advance to R + 1
+
+event.revision <= R
+→ duplicate / old
+→ ignore
+
+event.revision > R + 1
+→ gap
+→ mark unsafe
+→ fail closed / recover
+```
+
+`last_seen_revision` means the highest revision that has been successfully materialized locally.
+
+It is **not** the highest revision merely observed on the network.
+
+---
+
+## Startup and recovery
+
+Startup:
+
+```text
+GetRevocationSnapshot
+        ↓
+snapshot @ revision R
+        ↓
+materialize local state
+        ↓
+WatchRevocations(after_revision=R)
+```
+
+Reconnect:
+
+```text
+disconnect
+    ↓
+reconnect(after_revision=last_seen_revision)
+    ↓
+replay missed events
+    ↓
+resume live stream
+```
+
+If replay history is no longer available:
+
+```text
+ResetRequired
+    ↓
+fresh snapshot
+    ↓
+atomic local replacement
+    ↓
+resume stream
+```
+
+Reconnect uses bounded exponential backoff and respects `context.Context` cancellation.
+
+---
+
+## Freshness and fail-closed behavior
+
+A temporary control-plane disconnect does not immediately make the sidecar unusable.
+
+The last fully materialized state may remain usable while it is still within the configured freshness interval.
+
+If control state becomes stale or unsafe:
+
+```text
+DENY
+CONTROL_STATE_STALE
+```
+
+Examples:
+
+- maximum staleness exceeded;
+- revision gap;
+- inconsistent heartbeat;
+- unsafe state awaiting snapshot recovery.
+
+Heartbeats refresh freshness but do **not** advance durable revision state and cannot be used to skip missing events.
+
+---
+
+## Multi-sidecar convergence
+
+Gate E validates multiple independent sidecars connected to the same control plane.
+
+After a revocation at revision `N`:
+
+```text
+                  Control Plane
+                       │
+                 revision N
+                 revoke token
+                   ┌───┴───┐
+                   ▼       ▼
+              Sidecar A  Sidecar B
+              revision N revision N
+              revoked    revoked
+                 │          │
+                 ▼          ▼
+                DENY       DENY
+             TOKEN_REVOKED TOKEN_REVOKED
+```
+
+The system therefore converges on both:
+
+1. the same distributed revocation state;
+2. the same security outcome.
+
+---
+
+# Enforcement Model
 
 The sidecar is an explicit enforcement point.
 
-Traffic must be routed through the sidecar by the deployment architecture. The sidecar itself does **not** claim to provide an OS-level transparent interception boundary.
+Traffic must be routed through the sidecar by deployment architecture. The sidecar itself does **not** claim to provide OS-level transparent interception.
 
-Prevention of direct upstream bypass is a deployment responsibility and should be enforced using mechanisms such as:
+Prevention of direct upstream bypass is a deployment responsibility and should use mechanisms such as:
 
 - network policy;
 - firewall rules;
@@ -205,43 +355,17 @@ Prevention of direct upstream bypass is a deployment responsibility and should b
 
 ---
 
-## Verification Order
-
-The implementation follows the normative HACP evaluation pipeline defined by the specification and crypto profile.
-
-Conceptually, evaluation proceeds through:
-
-1. schema and required-field validation;
-2. token decision validation;
-3. signer-key resolution;
-4. signer-key revocation;
-5. cryptographic signature verification;
-6. envelope/token revocation;
-7. temporal validity;
-8. action binding;
-9. request constraint binding;
-10. scope containment;
-11. semantic boundary evaluation;
-12. human/checkpoint rules;
-13. budget/replay state;
-14. provenance acceptance;
-15. upstream forwarding.
-
-Any validation failure results in a deterministic `DENY`.
-
-No request is forwarded after an enforcement failure.
-
----
-
-## Repository Structure
+# Repository Structure
 
 ```text
 hacp-sidecar/
+├── .github/
+│   └── workflows/
+│       └── tests.yml
+│
 ├── benchmarks/
 │   ├── benchmark-rotating/
-│   │   └── main.go
 │   ├── generate-tokens/
-│   │   └── main.go
 │   ├── benchmark.ps1
 │   ├── benchmark.sh
 │   ├── benchmark_rotating.ps1
@@ -258,11 +382,21 @@ hacp-sidecar/
 │
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── GATE_E_DISTRIBUTED_CONTROL_PLANE.md
+│   ├── GATE_E_ENGINEERING_REPORT.md
 │   └── postmortems/
-│       └── gate-d-benchmark.md
+│       ├── gate-d-benchmark.md
+│       └── gate-d-performance-validation.md
+│
+├── gen/
+│   └── controlplane/
+│       └── v1/
+│           ├── control_plane.pb.go
+│           └── control_plane_grpc.pb.go
 │
 ├── internal/
 │   ├── budget/
+│   ├── controlplane/
 │   ├── evaluate/
 │   ├── provenance/
 │   ├── proxy/
@@ -270,22 +404,23 @@ hacp-sidecar/
 │   └── wire/
 │
 ├── go.mod
+├── go.sum
 ├── LICENSE.md
 └── README.md
 ```
 
-Generated benchmark tokens, benchmark result files, and local executables are development artifacts and are not intended to be committed.
+Generated benchmark tokens, benchmark result files, local executables, and machine-local artifacts are not intended to be committed.
 
 ---
 
-## Requirements
+# Requirements
 
-### Required
+## Required
 
-- Go 1.22+
-- Python 3.x for the reference/mock services and conformance harness
+- Go version defined by `go.mod`
+- Python 3.x for reference/mock services and conformance tooling
 
-### Optional
+## Optional
 
 - [`hey`](https://github.com/rakyll/hey) for HTTP load testing
 - Docker for containerized deployment experiments
@@ -294,9 +429,9 @@ The native/reference topology does not require Docker.
 
 ---
 
-## Build
+# Build
 
-### Sidecar
+## Sidecar
 
 Linux/macOS:
 
@@ -310,7 +445,7 @@ Windows:
 go build -o hacp-sidecar.exe ./cmd/sidecar
 ```
 
-### Conformance runner
+## Conformance runner
 
 Linux/macOS:
 
@@ -324,179 +459,71 @@ Windows:
 go build -o hacp-conformance-runner.exe ./cmd/hacp-conformance-runner
 ```
 
-### Benchmark utilities
-
-Linux/macOS:
-
-```bash
-go build -o benchmarks/generate-tokens ./benchmarks/generate-tokens
-go build -o benchmarks/benchmark-rotating ./benchmarks/benchmark-rotating
-```
-
-Windows:
-
-```powershell
-go build -o .\benchmarks\generate-tokens.exe .\benchmarks\generate-tokens
-go build -o .\benchmarks\benchmark_rotating.exe .\benchmarks\benchmark-rotating
-```
-
 ---
 
-## Native Reference Topology
+# Test
 
-The current reference setup uses four processes:
-
-```text
-┌────────────────────┐
-│ Benchmark / Client │
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────┐
-│ HACP Sidecar :8080 │
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────┐
-│ Upstream      :8000│
-└────────────────────┘
-
-┌────────────────────┐
-│ Control Plane :5000│
-└────────────────────┘
-```
-
-### 1. Start mock upstream
-
-Windows PowerShell:
-
-```powershell
-cd deployments
-python upstream\server.py 8000
-```
-
-The reference upstream uses HTTP/1.1 and explicit `Content-Length` so persistent connections can be exercised correctly during performance tests.
-
-### 2. Start reference control plane
-
-```powershell
-cd deployments
-python control-plane\server.py 5000
-```
-
-### 3. Start HACP Sidecar
-
-From the repository root:
-
-```powershell
-$env:HACP_SIDECAR_PORT="8080"
-$env:HACP_UPSTREAM="http://127.0.0.1:8000"
-$env:HACP_PROVENANCE_FLUSH_PATH="provenance.jsonl"
-
-.\hacp-sidecar.exe
-```
-
-Linux/macOS:
+## Gate E control-plane suite
 
 ```bash
-export HACP_SIDECAR_PORT=8080
-export HACP_UPSTREAM=http://127.0.0.1:8000
-export HACP_PROVENANCE_FLUSH_PATH=provenance.jsonl
-
-./hacp-sidecar
+go test ./internal/controlplane -count=1 -v
 ```
 
----
+This suite covers:
 
-## Configuration
+- distributed revocation propagation;
+- heartbeat delivery;
+- freshness refresh;
+- invalid heartbeat handling;
+- duplicate/old revision handling;
+- revision gaps;
+- reconnect and replay;
+- bounded exponential backoff;
+- `ResetRequired`;
+- snapshot recovery;
+- stale fail-closed evaluation;
+- standalone evaluator compatibility;
+- two-sidecar convergence.
 
-Current runtime configuration includes:
-
-| Environment Variable | Default / Example | Description |
-|---|---|---|
-| `HACP_SIDECAR_PORT` | `8080` | HTTP listen port |
-| `HACP_UPSTREAM` | `http://127.0.0.1:8000` | Upstream service |
-| `HACP_PROVENANCE_FLUSH_PATH` | `provenance.jsonl` | Provenance flush target |
-
-Additional evaluation defaults such as clock skew and revocation staleness are defined by the evaluation pipeline and will become part of the distributed Gate E configuration model.
-
----
-
-## Test
-
-### Unit Tests
+## Full regression
 
 ```bash
-go test ./...
+go test ./... -count=1
 ```
 
-Current expected result:
-
-```text
-ok      hacp-sidecar/internal/scope
-```
-
-Packages without dedicated unit-test files are still compiled as part of `go test ./...`.
-
-### Static Analysis
+## Static analysis
 
 ```bash
 go vet ./...
 ```
 
-Both commands should complete without errors before committing changes.
+Runtime changes should not be committed without passing the relevant tests.
 
 ---
 
-## Manual Integration Test
+# Conformance
 
-Generate a valid HACP request:
-
-```bash
-go run ./cmd/gen-token > headers.txt
-```
-
-Then send it through the sidecar:
-
-```bash
-curl -i http://127.0.0.1:8080/api/test \
-  -H "X-HACP-Intent-Envelope: $(grep 'X-HACP-Intent-Envelope' headers.txt | cut -d: -f2-)" \
-  -H "X-HACP-Decision-Token: $(grep 'X-HACP-Decision-Token' headers.txt | cut -d: -f2-)"
-```
-
-Expected result:
-
-```http
-HTTP/1.1 200 OK
-X-HACP-Decision: ALLOW
-```
-
----
-
-## Conformance
-
-### Gate A — Protocol Correctness
+## Gate A — Protocol Correctness
 
 **Status: ✅ Closed**
 
-The sidecar passes all current HACP-Core conformance vectors.
+The sidecar passes all canonical HACP-Core v0.9.2 conformance vectors:
 
 ```text
 RESULTS: 38/38 passed
 ```
 
-### Build runner
+Build the runner:
 
 ```powershell
 go build -o hacp-conformance-runner.exe ./cmd/hacp-conformance-runner
 ```
 
-### Run harness
-
-From the `hacp-spec` repository:
+Run the canonical harness from the adjacent specification repository:
 
 ```powershell
-cd C:\Personal\GitHub\Dev\hacp-spec\harness
+cd ...\GitHub\hacp-spec\harness
+
 python .\harness.py
 ```
 
@@ -506,53 +533,27 @@ Expected:
 RESULTS: 38/38 passed
 ```
 
-The harness communicates with implementations through the language-neutral HACP conformance runner protocol.
+The harness communicates with implementations through the language-neutral runner protocol.
 
----
-
-## Conformance Alignment
-
-To satisfy the HACP-Core vectors, the implementation includes:
-
-1. **Canonical JSON processing**  
-   JSON number handling preserves the representation required by signature verification and canonicalization.
-
-2. **Clock handling**  
-   Evaluation can use conformance-provided policy clock context for deterministic temporal tests.
-
-3. **Action hash binding**  
-   Decision tokens bind to the proposed action through the HACP-defined action hash.
-
-4. **State isolation**  
-   Conformance state is isolated so budget/replay state does not leak between independent test vectors.
-
-5. **Principal/checkpoint semantics**  
-   Evaluation preserves the HACP distinction between the acting principal and human checkpoint/authorization semantics.
-
-6. **Checkpoint propagation**  
-   Checkpoint information is propagated through the evaluation pipeline.
-
-7. **Human-required evaluation**  
-   Human-required policy semantics are evaluated according to the normative ordering.
-
-8. **Provenance binding**  
-   Conformance responses preserve the required provenance/event bindings.
-
-For the normative runner contract, see:
+See:
 
 [`hacp-spec/harness/runner_protocol.md`](https://github.com/digital-humanism/hacp-spec/blob/main/harness/runner_protocol.md)
 
 ---
 
-## Boundary Matrix
+# Boundary Matrix
 
-### Gate B — Semantic Completeness
+## Gate B — Semantic Completeness
 
 **Status: ✅ Closed**
 
-Security-relevant semantic transitions are evaluated through a data-driven boundary matrix.
+Security-relevant transitions are evaluated through a data-driven boundary matrix under:
 
-The matrix operates across attributes such as:
+```text
+internal/scope/
+```
+
+The matrix evaluates attributes including:
 
 - audience;
 - externality;
@@ -561,23 +562,17 @@ The matrix operates across attributes such as:
 - resource class;
 - principal semantics.
 
-Unknown security-relevant values fail closed rather than silently defaulting to a permissive interpretation.
-
-Boundary evaluation lives under:
-
-```text
-internal/scope/
-```
+Unknown security-relevant values fail closed.
 
 ---
 
-## Reference Deployment
+# Reference Deployment
 
-### Gate C — Deployability
+## Gate C — Deployability
 
 **Status: ✅ Closed**
 
-Gate C is validated using the native/reference topology:
+Reference topology:
 
 ```text
 Client
@@ -587,24 +582,17 @@ HACP Sidecar
 Real HTTP Upstream
 ```
 
-with a separate reference control-plane process.
-
 The sidecar performs actual HTTP forwarding rather than local response emulation.
 
-The upstream connection uses a dedicated pooled HTTP client with:
+The upstream path uses a pooled HTTP transport with persistent connections and hop-by-hop header filtering.
 
-- persistent HTTP/1.1 connections;
-- reusable idle connections;
-- bounded connection management;
-- hop-by-hop header filtering.
-
-Docker/container deployment remains useful as a packaging option, but Gate C does not depend on Docker.
+Docker remains an optional packaging topology rather than a requirement for Gate C.
 
 ---
 
-## Performance
+# Performance
 
-### Gate D — Operational Viability
+## Gate D — Operational Viability
 
 **Status: ✅ Closed**
 
@@ -614,255 +602,106 @@ Acceptance target:
 p99 HACP enforcement overhead < 5 ms
 ```
 
-Performance is evaluated using several complementary workloads.
-
-### Reference Results
+Reference results:
 
 | Benchmark | Workload | Result |
 |---|---|---|
 | Serial | 1000 requests, unique token/request | **p99 overhead 0.59 ms** |
-| PowerShell rotating | 1000 requests, concurrency 5, unique token/request | **avg overhead 0.53 ms**, **p95 overhead 1.10 ms** |
-| Go high-rate rotating | 5 × 1000 requests, concurrency 5, unique token/request | **median p99 overhead 1.26 ms** |
+| PowerShell rotating | 1000 requests, concurrency 5 | **avg 0.53 ms**, **p95 1.10 ms** |
+| Go rotating | 5 × 1000 requests, concurrency 5 | **median p99 1.26 ms** |
 | `hey` shared-token | 1000 requests, concurrency 5 | sidecar **p99 3.3 ms**, ~**2761 req/s** |
 
-All reference benchmark requests completed successfully.
-
-### Serial Gate D Acceptance
-
-Reference result:
+Serial Gate D acceptance:
 
 ```text
-Baseline:
-  p99: 4.04 ms
-
-Sidecar:
-  p99: 4.63 ms
-
-p99 overhead:
-  0.59 ms
+Baseline p99: 4.04 ms
+Sidecar p99:  4.63 ms
+Overhead:     0.59 ms
 
 GATE D PASS
 ```
 
-### High-Rate Rotating-Token Characterization
-
-The Go high-rate benchmark performs:
-
-```text
-1000 requests
-concurrency = 5
-unique DecisionToken per request
-```
-
-Repeated execution is used because isolated p99 measurements are sensitive to operating-system, scheduler, transport, and upstream tail latency.
-
-Five-run reference p99 deltas:
-
-```text
-Run 1: -12.99 ms
-Run 2:  +1.26 ms
-Run 3:  +3.51 ms
-Run 4: +10.85 ms
-Run 5: -19.38 ms
-```
-
-Median:
-
-```text
-median p99 overhead = 1.26 ms
-```
-
-This is below the Gate D target of `5 ms`.
-
-Negative values are not interpreted as the sidecar making requests faster. They indicate that the independent baseline sample experienced a larger stochastic tail in that run.
-
-### Shared-Token Load Characterization
-
-Reference `hey` result:
-
-```text
-Requests:    1000
-Concurrency: 5
-
-Baseline:
-  Average:      1.7 ms
-  p99:         33.0 ms
-  Requests/sec: 2885.5
-
-Sidecar:
-  Average:      1.8 ms
-  p99:          3.3 ms
-  Requests/sec: 2760.6
-
-Sidecar success:
-  1000 / 1000
-```
-
-The baseline and sidecar workloads use the same HTTP keep-alive policy.
-
-The isolated baseline p99 spike is treated as stochastic system/upstream tail behavior rather than sidecar acceleration.
+Negative deltas in repeated isolated measurements are treated as stochastic baseline/upstream tail behavior, not as evidence that the sidecar makes requests faster.
 
 ---
 
-## Running Benchmarks
+# Distributed Management
 
-### Serial Gate D benchmark
+## Gate E — Distributed Control Plane
 
-Windows:
+**Status: ✅ Closed**
 
-```powershell
-.\benchmarks\benchmark_serial.ps1
-```
+Gate E establishes the distributed revocation/control-state layer.
 
-Purpose:
+Verified capabilities:
 
-```text
-Primary serial Gate D acceptance
-1000 requests
-unique token per request
-```
-
-### Concurrent rotating-token benchmark
-
-```powershell
-.\benchmarks\benchmark_rotating.ps1
-```
-
-Purpose:
-
-```text
-PowerShell concurrent characterization
-1000 requests
-concurrency 5
-unique DecisionToken per request
-```
-
-### High-rate rotating-token benchmark
-
-Build:
-
-```powershell
-go build `
-  -o .\benchmarks\benchmark_rotating.exe `
-  .\benchmarks\benchmark-rotating
-```
+- gRPC control-plane protocol;
+- durable monotonic revision semantics;
+- snapshot bootstrap;
+- live revoke stream;
+- duplicate/old event idempotency;
+- revision-gap detection;
+- reconnect and replay;
+- bounded exponential reconnect backoff;
+- replay-compaction handling;
+- `ResetRequired`;
+- snapshot recovery;
+- heartbeat freshness;
+- stale fail-closed behavior;
+- real Pipeline revocation propagation;
+- two-sidecar convergence.
 
 Run:
 
-```powershell
-.\benchmarks\benchmark_rotating.exe
+```bash
+go test ./internal/controlplane -count=1 -v
+go test ./... -count=1
 ```
 
-For regression characterization, run multiple iterations:
+Both passed at Gate E completion.
 
-```powershell
-1..5 | ForEach-Object {
-    Write-Host ""
-    Write-Host "================ RUN $_ ================"
-    .\benchmarks\benchmark_rotating.exe
-    Start-Sleep -Seconds 2
-}
-```
+See:
 
-### Shared-token `hey` benchmark
+- [`docs/GATE_E_DISTRIBUTED_CONTROL_PLANE.md`](docs/GATE_E_DISTRIBUTED_CONTROL_PLANE.md)
+- [`docs/GATE_E_ENGINEERING_REPORT.md`](docs/GATE_E_ENGINEERING_REPORT.md)
 
-```powershell
-.\benchmarks\benchmark.ps1
-```
+The normative gRPC contract lives in:
 
-This workload:
-
-- generates fresh pre-signed HACP tokens;
-- uses one shared DecisionToken for the `hey` sidecar workload;
-- runs 1000 requests;
-- uses concurrency 5;
-- compares direct upstream traffic with sidecar traffic using the same keep-alive policy.
-
-### Token Generator
-
-Build:
-
-```powershell
-go build `
-  -o .\benchmarks\generate-tokens.exe `
-  .\benchmarks\generate-tokens
-```
-
-Example:
-
-```powershell
-.\benchmarks\generate-tokens.exe `
-  -count 1000 `
-  -out .\benchmarks\tokens.jsonl `
-  -method GET `
-  -path "/api/test"
-```
-
-The generated DecisionToken constraints include:
-
-```json
-{
-  "method": "GET",
-  "path": "/api/test",
-  "max_uses": 99999
-}
-```
+[`hacp-spec/proto/hacp/control/v1/control_plane.proto`](https://github.com/digital-humanism/hacp-spec/blob/main/proto/hacp/control/v1/control_plane.proto)
 
 ---
 
-## Response Headers
-
-### Allowed request
-
-```http
-HTTP/1.1 200 OK
-X-HACP-Decision: ALLOW
-```
-
-### Denied request
-
-```http
-HTTP/1.1 403 Forbidden
-X-HACP-Decision: DENY
-X-HACP-Reason: SIGNATURE_FAILURE
-```
-
-Additional request/provenance identifiers may be returned depending on the execution path.
-
----
-
-## Reason Codes
+# Reason Codes
 
 The sidecar uses deterministic HACP reason codes.
 
 | Code | Condition |
 |---|---|
-| `INVALID_ENVELOPE` | Missing or malformed intent envelope |
-| `INVALID_ACTION` | Missing or malformed proposed action |
-| `KEY_REVOKED` | Signer key is revoked |
-| `SIGNATURE_FAILURE` | Signature verification failed |
-| `ENVELOPE_REVOKED` | Intent envelope is revoked |
-| `TOKEN_REVOKED` | Decision token is revoked |
-| `ENVELOPE_EXPIRED` | Envelope exceeded `expires_at` |
-| `TOKEN_EXPIRED` | Token exceeded `expires_at` |
-| `SCOPE_EXCEEDED` | Proposed action is outside authorized scope/binding |
-| `BOUNDARY_CROSSING` | Semantic boundary transition is not permitted |
-| `UNKNOWN_ATTRIBUTE` | Unknown security-relevant attribute |
-| `BUDGET_EXHAUSTED` | Token/autonomy budget exhausted |
-| `HUMAN_REQUIRED` | Human authorization/checkpoint required |
-| `CHECKPOINT_TIMEOUT` | Required checkpoint timed out |
-| `TRACEABILITY_FAILURE` | Provenance/audit acceptance failed |
-| `POLICY_DENIED` | Policy explicitly denied execution |
+| `INVALID_ENVELOPE` | missing or malformed intent envelope |
+| `INVALID_ACTION` | missing or malformed proposed action |
+| `KEY_REVOKED` | signer key revoked |
+| `SIGNATURE_FAILURE` | signature verification failed |
+| `ENVELOPE_REVOKED` | intent envelope revoked |
+| `TOKEN_REVOKED` | decision token revoked |
+| `CONTROL_STATE_STALE` | distributed control state is stale or unsafe |
+| `ENVELOPE_EXPIRED` | envelope exceeded `expires_at` |
+| `TOKEN_EXPIRED` | token exceeded `expires_at` |
+| `SCOPE_EXCEEDED` | proposed action outside authorized scope/binding |
+| `BOUNDARY_CROSSING` | semantic boundary transition not permitted |
+| `UNKNOWN_ATTRIBUTE` | unknown security-relevant attribute |
+| `BUDGET_EXHAUSTED` | token/autonomy budget exhausted |
+| `HUMAN_REQUIRED` | human authorization/checkpoint required |
+| `CHECKPOINT_TIMEOUT` | required checkpoint timed out |
+| `TRACEABILITY_FAILURE` | provenance/audit acceptance failed |
+| `POLICY_DENIED` | policy explicitly denied execution |
 
-The normative definitions are maintained by `hacp-spec`.
+Normative definitions are maintained in `hacp-spec`.
 
 ---
 
-## Security Model
+# Security Model
 
 The agent runtime is treated as potentially hostile.
-
-The sidecar is responsible for validating the HACP authorization attached to traffic that reaches the enforcement point.
 
 Core protections include:
 
@@ -872,17 +711,19 @@ Core protections include:
 - semantic scope enforcement;
 - boundary-matrix evaluation;
 - signer/envelope/token revocation;
-- budget and replay state;
+- bounded autonomy;
+- replay/budget state;
+- distributed control-state freshness;
 - provenance-before-forwarding;
 - deterministic denial reasons.
 
-### Network bypass
+## Network bypass
 
 Routing through the sidecar alone is not an operating-system security boundary.
 
-A deployment that requires bypass resistance must additionally prevent the agent from establishing unauthorized direct connections to protected upstream services.
+Deployments requiring bypass resistance must independently prevent unauthorized direct connections to protected upstream services.
 
-Possible enforcement mechanisms include:
+Typical mechanisms:
 
 - Kubernetes NetworkPolicy;
 - firewall rules;
@@ -892,75 +733,47 @@ Possible enforcement mechanisms include:
 
 ---
 
-## Out of Scope for Current MVP
+# Out of Scope
 
-- eBPF enforcement
-- transparent iptables interception
-- dynamic-library injection
-- agent bytecode modification
-- full OS-level process isolation
-- generic non-HTTP transports
-- production distributed control plane
-- production distributed replay/budget database
+The current implementation does not claim to provide:
 
-These may be implemented in later phases without changing the core HACP authorization semantics.
+- eBPF enforcement;
+- transparent iptables interception;
+- dynamic-library injection;
+- agent bytecode modification;
+- full OS-level process isolation;
+- generic non-HTTP data-plane transports;
+- production external persistence for the control-plane journal;
+- globally distributed budget/replay databases.
 
----
-
-## Docker
-
-Containerized deployment is optional.
-
-If the repository contains a Docker Compose topology, it may be started with:
-
-```bash
-docker-compose -f deployments/docker-compose.yml up
-```
-
-The authoritative Gate C reference topology is currently the native multi-process setup documented above.
+These may be added without changing HACP-Core authorization semantics.
 
 ---
 
-## Development Workflow
+# Development Workflow
 
 Before committing runtime changes:
 
 ```bash
+gofmt -w .
 go test ./...
 go vet ./...
 ```
 
-Then rebuild the affected executables.
+For changes affecting HACP semantics:
 
-For changes that affect HACP semantics:
+1. run the full Go regression;
+2. rebuild the conformance runner;
+3. run HACP-Core conformance;
+4. verify `38/38`;
+5. run Gate E tests if distributed-control behavior changed;
+6. run Gate D benchmarks if the hot path changed.
 
-1. run `go test ./...`;
-2. run `go vet ./...`;
-3. rebuild the conformance runner;
-4. run the HACP conformance suite;
-5. verify `38/38`;
-6. run relevant performance regression tests if the runtime path changed.
-
-Example:
-
-```powershell
-gofmt -w .\internal\proxy\handler.go
-gofmt -w .\internal\evaluate\pipeline.go
-
-go test ./...
-go vet ./...
-
-go build -o hacp-sidecar.exe ./cmd/sidecar
-go build -o hacp-conformance-runner.exe ./cmd/hacp-conformance-runner
-```
-
-Runtime changes must not regress normative conformance.
+Runtime changes must not regress canonical conformance.
 
 ---
 
-## Gate Discipline
-
-Current development status:
+# Gate Discipline
 
 ```text
 Phase 4.1 — Design
@@ -982,10 +795,8 @@ Gate D — Operational Performance
 ✅ Closed
 
 Gate E — Distributed Control Plane
-⏸ Pending
+✅ Closed
 ```
-
-New features should preserve this separation.
 
 Typical ownership:
 
@@ -1000,13 +811,36 @@ Gate C / deployment and proxy behavior
 Gate D / performance regression
 → benchmarks/
 
-Gate E / distributed control-plane integration
-→ control-plane/runtime management components
+Gate E / distributed control plane
+→ internal/controlplane/
+→ gen/controlplane/
+→ hacp-spec/proto/
 ```
 
 ---
 
-## Documentation
+# CI
+
+GitHub Actions runs the Gate E integration suite and the full Go regression.
+
+Workflow:
+
+```text
+.github/workflows/tests.yml
+```
+
+The workflow checks out both:
+
+```text
+hacp-sidecar/
+hacp-spec/
+```
+
+so integration tests can use the canonical HACP vectors as an external source of truth.
+
+---
+
+# Documentation
 
 Architecture:
 
@@ -1014,48 +848,49 @@ Architecture:
 docs/ARCHITECTURE.md
 ```
 
-Gate D benchmark analysis:
+Gate D:
 
 ```text
 docs/postmortems/gate-d-benchmark.md
 docs/postmortems/gate-d-performance-validation.md
 ```
 
-Normative HACP specification:
+Gate E:
+
+```text
+docs/GATE_E_DISTRIBUTED_CONTROL_PLANE.md
+docs/GATE_E_ENGINEERING_REPORT.md
+```
+
+Normative protocol:
 
 [`digital-humanism/hacp-spec`](https://github.com/digital-humanism/hacp-spec)
 
 ---
 
-## License
+# License
 
-This repository contains the HACP Enforcement Sidecar implementation and is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**, with Commercial Dual Licensing available for enterprise deployments, closed-source embedding, and OEM integration.
+This repository contains the HACP Enforcement Sidecar implementation and is licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**, with commercial dual licensing available for enterprise deployments, closed-source embedding, and OEM integration.
 
 For commercial licensing inquiries:
 
 `digital.humanism.collective@protonmail.com`
 
-### Relationship to other HACP repositories
+## Relationship to other HACP repositories
 
 | Repository | Purpose | License |
 |---|---|---|
-| [`hacp-spec`](https://github.com/digital-humanism/hacp-spec) | Open protocol specification, schemas, and conformance suite | CC BY 4.0 |
-| [`humanist-core`](https://github.com/digital-humanism/humanist-core) | Reference SDK | AGPLv3 + commercial dual |
-| [`hacp-sidecar`](https://github.com/digital-humanism/hacp-sidecar) | Enforcement sidecar | AGPLv3 + commercial dual |
+| [`hacp-spec`](https://github.com/digital-humanism/hacp-spec) | open protocol specification, schemas, vectors, control-plane contract | CC BY 4.0 |
+| [`humanist-core`](https://github.com/digital-humanism/humanist-core) | reference SDK | AGPLv3 + commercial dual |
+| [`hacp-sidecar`](https://github.com/digital-humanism/hacp-sidecar) | enforcement sidecar | AGPLv3 + commercial dual |
 
-The separation allows the HACP protocol itself to remain an open, vendor-neutral specification while reference tooling and enforcement implementations can maintain an independent sustainability model.
-
-### AGPLv3 network deployment
-
-AGPLv3 contains source-disclosure obligations for modified software made available for interaction over a network.
-
-Organizations requiring different licensing terms for proprietary deployments, embedding, redistribution, or OEM integration may use a commercial license.
+This separation keeps the protocol itself open and vendor-neutral while allowing implementation repositories to maintain their own sustainability model.
 
 See [`LICENSE.md`](LICENSE.md) for repository licensing terms.
 
 ---
 
-## Contributing
+# Contributing
 
 Contributions must preserve:
 
@@ -1064,7 +899,9 @@ Contributions must preserve:
 - deterministic denial behavior;
 - security-relevant evaluation ordering;
 - boundary-matrix behavior;
-- provenance-before-forwarding guarantees;
+- distributed revision invariants;
+- freshness/fail-closed semantics;
+- provenance-before-forwarding;
 - benchmark reproducibility.
 
 Before submitting a pull request:
@@ -1080,11 +917,13 @@ For protocol/runtime changes, also verify:
 HACP-Core conformance: 38/38 PASS
 ```
 
-Performance-sensitive changes should also run the Gate D benchmark suite.
+Distributed-control changes should run the Gate E suite.
+
+Performance-sensitive changes should run the Gate D benchmark suite.
 
 ---
 
-## Contact
+# Contact
 
 **Digital Humanism Collective**
 
