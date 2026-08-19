@@ -655,3 +655,7 @@ Will another sidecar reach the same security result?
 The completed implementation answers those questions with protocol rules, runtime behavior, and test evidence.
 
 **Gate E / Phase 4b — Complete.**
+
+---
+
+**Contact:** [digital.humanism.collective@protonmail.com](mailto:digital.humanism.collective@protonmail.com)

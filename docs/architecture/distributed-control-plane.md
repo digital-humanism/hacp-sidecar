@@ -592,3 +592,8 @@ Gate E establishes a distributed control-state model where sidecars can:
 - validate freshness independently of mutation traffic;
 - fail closed when authority state becomes stale;
 - converge deterministically across replicas.
+
+
+---
+
+**Contact:** [digital.humanism.collective@protonmail.com](mailto:digital.humanism.collective@protonmail.com)

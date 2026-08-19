@@ -803,3 +803,7 @@ state machine
 → evaluator
 → multiple sidecars
 ```
+
+---
+
+**Contact:** [digital.humanism.collective@protonmail.com](mailto:digital.humanism.collective@protonmail.com)

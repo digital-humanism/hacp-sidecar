@@ -295,3 +295,8 @@ CI executes both commands through GitHub Actions.
 Gate E establishes a distributed revocation control plane in which HACP sidecars can continue operating through short control-plane interruptions, recover deterministically from missed history, converge across replicas, and fail closed when distributed authority state can no longer be considered fresh.
 
 **Gate E / Phase 4b is complete.**
+
+
+---
+
+**Contact:** [digital.humanism.collective@protonmail.com](mailto:digital.humanism.collective@protonmail.com)
