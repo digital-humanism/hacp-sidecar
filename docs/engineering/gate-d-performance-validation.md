@@ -1215,14 +1215,14 @@ Before running Gate D benchmarks:
 - `benchmarks/benchmark.sh` — Shell benchmark helper
 - `deployments/upstream/server.py` — Reference HTTP/1.1 upstream
 - `deployments/control-plane/` — Reference control-plane implementation
-- `docs/ARCHITECTURE.md` — HACP Sidecar architecture
+- `docs/architecture/architecture.md` — HACP Sidecar architecture
 
 ---
 
 ## Related Documentation
 
 - [`README.md`](../../README.md)
-- [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md)
+- [`docs/architecture/architecture.md`](../architecture/architecture.md)
 - [`hacp-spec`](https://github.com/digital-humanism/hacp-spec)
 
 ---

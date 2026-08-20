@@ -363,9 +363,9 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 
 	checkpointRaw := input.Checkpoint
 
-	// Если отдельного checkpoint нет, попробуем найти его внутри
-	// policy_context. Это делает runner терпимым к обоим вариантам
-	// представления conformance context.
+	// If no explicit checkpoint is provided, try to read it from
+	// policy_context. This keeps the runner compatible with both
+	// conformance-context representations.
 	if (len(bytes.TrimSpace(checkpointRaw)) == 0 ||
 		isJSONNull(checkpointRaw)) &&
 		len(bytes.TrimSpace(input.PolicyContext)) > 0 &&

@@ -243,7 +243,7 @@ $env:HACP_PROVENANCE_FLUSH_PATH = "provenance.jsonl"
 .\hacp-sidecar.exe
 
 # Terminal 4: benchmark
-$env:Path += ";C:\Users\$env:USERNAME\go\bin"
+$env:Path += ";$HOME\go\bin"
 .\benchmarks\benchmark_serial.ps1
 ```
 

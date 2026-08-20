@@ -334,7 +334,7 @@ Full threat model: [`hacp-spec/threat-model.md`](https://github.com/digital-huma
 - Gate A: 38/38 conformance vectors pass
 - Gate B: Data-driven boundary matrix implemented in `internal/scope/matrix.go`
 - Gate C: Docker Compose reference deployment with demo scenarios
-- Gate D: p99 overhead validated (see [postmortem](postmortems/gate-d-benchmark.md) and [technical report](postmortems/gate-d-performance-validation.md))
+- Gate D: p99 overhead validated (see [postmortem](../engineering/gate-d-benchmark.md) and [technical report](../engineering/gate-d-performance-validation.md))
 
 ## Future Work
 

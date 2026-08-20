@@ -381,12 +381,18 @@ hacp-sidecar/
 │   └── upstream/
 │
 ├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── GATE_E_DISTRIBUTED_CONTROL_PLANE.md
-│   ├── GATE_E_ENGINEERING_REPORT.md
-│   └── postmortems/
-│       ├── gate-d-benchmark.md
-│       └── gate-d-performance-validation.md
+│   ├── README.md
+│   ├── architecture/
+│   │   ├── architecture.md
+│   │   └── distributed-control-plane.md
+│   ├── gates/
+│   │   └── gate-e-distributed-control-plane.md
+│   ├── engineering/
+│   │   ├── gate-d-benchmark.md
+│   │   ├── gate-d-performance-validation.md
+│   │   └── gate-e-engineering-report.md
+│   └── verification/
+│       └── distributed-control-plane-testing.md
 │
 ├── gen/
 │   └── controlplane/
@@ -662,8 +668,8 @@ Both passed at Gate E completion.
 
 See:
 
-- [`docs/GATE_E_DISTRIBUTED_CONTROL_PLANE.md`](docs/GATE_E_DISTRIBUTED_CONTROL_PLANE.md)
-- [`docs/GATE_E_ENGINEERING_REPORT.md`](docs/GATE_E_ENGINEERING_REPORT.md)
+- [`docs/gates/gate-e-distributed-control-plane.md`](docs/gates/gate-e-distributed-control-plane.md)
+- [`docs/engineering/gate-e-engineering-report.md`](docs/engineering/gate-e-engineering-report.md)
 
 The normative gRPC contract lives in:
 
@@ -845,21 +851,21 @@ so integration tests can use the canonical HACP vectors as an external source of
 Architecture:
 
 ```text
-docs/ARCHITECTURE.md
+docs/architecture/architecture.md
 ```
 
 Gate D:
 
 ```text
-docs/postmortems/gate-d-benchmark.md
-docs/postmortems/gate-d-performance-validation.md
+docs/engineering/gate-d-benchmark.md
+docs/engineering/gate-d-performance-validation.md
 ```
 
 Gate E:
 
 ```text
-docs/GATE_E_DISTRIBUTED_CONTROL_PLANE.md
-docs/GATE_E_ENGINEERING_REPORT.md
+docs/gates/gate-e-distributed-control-plane.md
+docs/engineering/gate-e-engineering-report.md
 ```
 
 Normative protocol:
