@@ -11,15 +11,27 @@ gen-token
 /bin/
 /dist/
 /build/
-
-# Test artifacts
 *.test
 *.out
 *.prof
-headers.txt
-provenance.jsonl
 
-# Dependency directories (optional - Go modules handles this)
+# Runtime data
+provenance.jsonl
+tokens.jsonl
+headers.txt
+
+# Benchmark artifacts
+benchmarks/tokens.jsonl
+benchmarks/results/
+benchmarks/*.exe
+
+# Local Python environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Dependency directories
 # vendor/
 
 # IDE
@@ -34,28 +46,3 @@ Thumbs.db
 
 # Logs
 *.log
-
-# Build artifacts
-*.exe
-*.out
-
-# Runtime data
-provenance.jsonl
-
-# Generated benchmark data
-benchmarks/tokens.jsonl
-
-# Python
-__pycache__/
-*.pyc
-
-# IDE / OS
-.vscode/
-.DS_Store
-Thumbs.db
-
-# Benchmark artifacts
-tokens.jsonl
-benchmarks/tokens.jsonl
-benchmarks/results/
-benchmarks/*.exe

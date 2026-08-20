@@ -228,7 +228,7 @@ achieved = 3.2× under target
 ## Reproduction
 
 ```powershell
-cd C:\Personal\GitHub\Dev\hacp-sidecar
+cd <path-to>\hacp-sidecar
 
 # Terminal 1: upstream
 python deployments/upstream/server.py 8000

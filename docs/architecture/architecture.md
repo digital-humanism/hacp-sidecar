@@ -171,7 +171,7 @@ deterministic reason code from `hacp-spec/error-model.md`.
 - `DefaultScopeGuard` — basic scope validation
 - Checks action attributes against envelope scope
 - Returns `SCOPE_EXCEEDED` if outside boundaries
-- **Pending (Gate B):** full boundary matrix with data-driven transitions
+- **Gate B complete:** full boundary matrix with data-driven transitions implemented and validated
 
 ### `internal/budget` — Autonomy Budget
 
@@ -364,5 +364,8 @@ Replace the current HTTP-based control plane with authenticated gRPC streaming f
 - Error Model: [`hacp-spec/error-model.md`](https://github.com/digital-humanism/hacp-spec/blob/main/error-model.md)
 - Conformance Suite: [`hacp-spec/CONFORMANCE-SUITE.md`](https://github.com/digital-humanism/hacp-spec/blob/main/CONFORMANCE-SUITE.md)
 - Runner Protocol: [`hacp-spec/harness/runner_protocol.md`](https://github.com/digital-humanism/hacp-spec/blob/main/harness/runner_protocol.md)
+
+
+---
 
 **Contact:** [digital.humanism.collective@protonmail.com](mailto:digital.humanism.collective@protonmail.com)
