@@ -6,6 +6,18 @@ Implements the HACP Enforcement profile defined by [`hacp-spec`](https://github.
 
 HACP Sidecar is a fail-closed enforcement point between an AI agent and protected tools or services. A request is forwarded upstream only after its HACP intent, authorization token, scope, semantic boundary conditions, budget, revocation state, distributed control-state freshness, and provenance requirements have been validated.
 
+## Version domains
+
+| Domain | Version |
+|---|---|
+| Sidecar release | `v0.5.0-rc.1` |
+| HACP specification release | `0.9.3` |
+| HACP-Core conformance baseline | `0.9.2` |
+| Wire protocol family | `0.9` |
+| Runner Protocol | `1` |
+
+These versions belong to separate release and compatibility domains and MUST NOT be conflated.
+
 ---
 
 ## Overview
