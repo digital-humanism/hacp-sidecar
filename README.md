@@ -10,7 +10,7 @@ HACP Sidecar is a fail-closed enforcement point between an AI agent and protecte
 
 | Domain | Version |
 |---|---|
-| Sidecar release | `v0.5.0-rc.1` |
+| Sidecar release | `v0.5.0` |
 | HACP specification release | `0.9.3` |
 | HACP-Core conformance baseline | `0.9.2` |
 | Wire protocol family | `0.9` |

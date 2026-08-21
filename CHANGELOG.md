@@ -4,6 +4,29 @@ All notable changes to `hacp-sidecar` are documented in this file.
 
 The format is inspired by Keep a Changelog, and this project uses semantic versioning for repository releases.
 
+## [0.5.0] - 2026-08-21
+
+Stable promotion of the `v0.5.0-rc.1` release candidate.
+
+No runtime, protocol, or enforcement semantics changed after the release candidate.
+
+### Verified
+
+- Clean-clone Go dependency resolution passes.
+- Full Go regression suite passes.
+- Gate E distributed control-plane suite passes.
+- Distributed revocation and two-sidecar convergence remain verified.
+- Python ↔ Go sidecar interoperability remains verified.
+- Gate D p99 sidecar overhead remains within the release target.
+
+### Release compatibility
+
+- Sidecar release: `v0.5.0`
+- HACP specification release: `0.9.3`
+- HACP-Core conformance baseline: `0.9.2`
+- HACP wire version: `0.9`
+- Runner Protocol: `1`
+
 ## [0.5.0-rc.1] - 2026-08-20
 
 ### Added

@@ -6,14 +6,14 @@ Security reports are welcome and should be handled privately until a fix or coor
 
 ## Supported Versions
 
-The project is currently preparing its first public release candidate.
+The current stable release is supported.
 
 | Version | Supported |
 |---|---|
-| `0.5.0-rc.1` | Yes |
-| Earlier development snapshots | No |
+| `0.5.0` | Yes |
+| Earlier development snapshots and release candidates | No |
 
-Support policy will be updated as stable releases are published.
+Support policy will be updated as future stable releases are published.
 
 ## Reporting a Vulnerability
 
