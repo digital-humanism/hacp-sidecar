@@ -896,6 +896,8 @@ For commercial licensing inquiries:
 
 ## Relationship to other HACP repositories
 
+The broader human-agency principles that motivate HACP are articulated in the [Digital Humanism Manifesto](https://github.com/digital-humanism/manifesto). HACP is one concrete technical realization of selected principles of that Manifesto.
+
 | Repository | Purpose | License |
 |---|---|---|
 | [`hacp-spec`](https://github.com/digital-humanism/hacp-spec) | open protocol specification, schemas, vectors, control-plane contract | CC BY 4.0 |
