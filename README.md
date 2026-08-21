@@ -1,5 +1,7 @@
 # HACP Sidecar
 
+[![release](https://img.shields.io/github/v/release/digital-humanism/hacp-sidecar?label=release)](https://github.com/digital-humanism/hacp-sidecar/releases/latest)
+
 Enforcement sidecar for the **Human Agency Continuity Protocol (HACP)**.
 
 Implements the HACP Enforcement profile defined by [`hacp-spec`](https://github.com/digital-humanism/hacp-spec).
