@@ -127,6 +127,19 @@ func main() {
 	)
 
 	mux.HandleFunc(
+		"/readyz",
+		makeReadinessHandler(
+			func() bool {
+				// Standalone runtime has no configured distributed
+				// control-state dependency. Mandatory trust
+				// initialization has already completed successfully
+				// before the HTTP server starts.
+				return true
+			},
+		),
+	)
+
+	mux.HandleFunc(
 		"/revoke/token",
 		makeRevokeHandler(
 			revocation,
