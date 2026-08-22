@@ -124,6 +124,11 @@ full Go regression            PASS
 - ✅ local revocation state
 - ✅ provenance ring buffer
 - ✅ asynchronous provenance flush
+- ✅ explicit production signer trust configuration
+- ✅ immutable/atomic trust snapshots
+- ✅ conflict-safe signer-key binding
+- ✅ revisioned planned trust rotation
+- ✅ explicit loopback-only runtime trust reload and observability
 
 ## Distributed control plane
 
@@ -405,6 +410,8 @@ hacp-sidecar/
 │   │   ├── gate-d-benchmark.md
 │   │   ├── gate-d-performance-validation.md
 │   │   └── gate-e-engineering-report.md
+│   ├── security/
+│   │   └── key-lifecycle-and-trust.md
 │   └── verification/
 │       └── distributed-control-plane-testing.md
 │
@@ -421,6 +428,7 @@ hacp-sidecar/
 │   ├── provenance/
 │   ├── proxy/
 │   ├── scope/
+│   ├── trust/
 │   └── wire/
 │
 ├── go.mod
@@ -446,6 +454,69 @@ Generated benchmark tokens, benchmark result files, local executables, and machi
 - Docker for containerized deployment experiments
 
 The native/reference topology does not require Docker.
+
+---
+
+
+# Production Trust Configuration
+
+Production sidecar startup requires explicit signer trust.
+
+```text
+HACP_TRUST_MODE=production
+HACP_TRUST_KEYS_FILE=<path-to-trust-file>
+```
+
+Production mode is the default. Missing or invalid trust configuration causes startup failure; the published conformance key is never an implicit production trust root.
+
+Explicit conformance/test mode is available only with:
+
+```text
+HACP_TRUST_MODE=test
+```
+
+The production trust store uses validated immutable snapshots with atomic activation, revision rollback protection, and conflicting signer-binding rejection.
+
+Current trust-file format:
+
+```json
+{
+  "revision": 1,
+  "keys": [
+    {
+      "key_id": "production-signer-01",
+      "public_key_hex": "<32-byte Ed25519 public key as 64 hex characters>"
+    }
+  ]
+}
+```
+
+This file is an implementation/deployment format, not a normative HACP wire object.
+
+Planned rotation is performed through trust-state evolution:
+
+```text
+old
+→ old + new
+→ new
+```
+
+Optional local trust administration can be enabled with a loopback-only address:
+
+```text
+HACP_TRUST_ADMIN_ADDR=127.0.0.1:9081
+```
+
+Endpoints:
+
+```text
+GET  /trust
+POST /trust/reload
+```
+
+The admin surface is disabled by default and is not a public remote-management API. Non-loopback bind addresses are rejected.
+
+See [`docs/security/key-lifecycle-and-trust.md`](docs/security/key-lifecycle-and-trust.md).
 
 ---
 
@@ -731,6 +802,8 @@ Core protections include:
 - semantic scope enforcement;
 - boundary-matrix evaluation;
 - signer/envelope/token revocation;
+- explicit production signer trust;
+- conflict-safe and atomically replaceable trust state;
 - bounded autonomy;
 - replay/budget state;
 - distributed control-state freshness;
@@ -880,6 +953,12 @@ Gate E:
 ```text
 docs/gates/gate-e-distributed-control-plane.md
 docs/engineering/gate-e-engineering-report.md
+```
+
+Security hardening:
+
+```text
+docs/security/key-lifecycle-and-trust.md
 ```
 
 Normative protocol:

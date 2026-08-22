@@ -1,10 +1,14 @@
 package wire
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"errors"
+	"fmt"
 	"sync"
 )
+
+var ErrConflictingKeyBinding = errors.New("conflicting key binding")
 
 // KeyResolver resolves signer_key_id to Ed25519 public keys
 type KeyResolver interface {
@@ -24,11 +28,23 @@ func NewStaticKeyResolver() *StaticKeyResolver {
 	}
 }
 
-// AddKey registers a public key by its ID
-func (r *StaticKeyResolver) AddKey(keyID string, pubKey ed25519.PublicKey) {
+// AddKey registers a public key by its ID.
+//
+// Re-adding the same key for the same ID is idempotent.
+// Rebinding an existing ID to different key material is rejected.
+func (r *StaticKeyResolver) AddKey(keyID string, pubKey ed25519.PublicKey) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	if existing, ok := r.keys[keyID]; ok {
+		if bytes.Equal(existing, pubKey) {
+			return nil
+		}
+		return fmt.Errorf("%w: %s", ErrConflictingKeyBinding, keyID)
+	}
+
 	r.keys[keyID] = pubKey
+	return nil
 }
 
 // AddKeyFromHex registers a public key from a hex-encoded string
@@ -37,8 +53,7 @@ func (r *StaticKeyResolver) AddKeyFromHex(keyID string, hexKey string) error {
 	if err != nil {
 		return err
 	}
-	r.AddKey(keyID, pubKey)
-	return nil
+	return r.AddKey(keyID, pubKey)
 }
 
 // ResolveKey looks up a key by ID

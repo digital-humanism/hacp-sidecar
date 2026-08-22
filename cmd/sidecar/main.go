@@ -13,7 +13,6 @@ import (
 	"hacp-sidecar/internal/evaluate"
 	"hacp-sidecar/internal/provenance"
 	"hacp-sidecar/internal/proxy"
-	"hacp-sidecar/internal/wire"
 )
 
 func main() {
@@ -53,16 +52,10 @@ func main() {
 	// Dependencies
 	// ============================================================
 
-	keyResolver :=
-		wire.NewStaticKeyResolver()
-
-	if err := keyResolver.AddKeyFromHex(
-		"key-ed25519-test-001",
-		"9d17f1bbcc0845865e670f526413fb7a510380798fe300b6c98e28f3a3b0fdb3",
-	); err != nil {
-
+	keyResolver, err := loadStartupTrustStore()
+	if err != nil {
 		log.Fatalf(
-			"failed to load test key: %v",
+			"failed to load trust configuration: %v",
 			err,
 		)
 	}
@@ -97,6 +90,17 @@ func main() {
 			provLog,
 			upstream,
 		)
+
+	trustAdminServer, err := startTrustAdminServer(
+		keyResolver,
+		os.Getenv("HACP_TRUST_KEYS_FILE"),
+	)
+	if err != nil {
+		log.Fatalf("failed to start trust admin server: %v", err)
+	}
+	if trustAdminServer != nil {
+		log.Printf("trust admin listening on %s", trustAdminServer.Addr)
+	}
 
 	// ============================================================
 	// HTTP routes

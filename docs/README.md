@@ -22,6 +22,10 @@
 - [Configuration](operations/configuration.md)
 - [Troubleshooting](operations/troubleshooting.md)
 
+## Security and Production Hardening
+
+- [Key Lifecycle and Trust Configuration](security/key-lifecycle-and-trust.md)
+
 ## Verification
 
 - [Conformance](verification/conformance.md)

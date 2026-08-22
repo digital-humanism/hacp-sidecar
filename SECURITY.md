@@ -46,7 +46,14 @@ Reports are especially important for issues involving:
 - fail-open behavior;
 - provenance integrity;
 - authorization bypass through malformed wire inputs;
-- sidecar deployment or configuration that permits enforcement bypass.
+- sidecar deployment or configuration that permits enforcement bypass;
+- unauthorized signer-key registration or replacement;
+- conflicting `signer_key_id` bindings;
+- trust-state rollback or partial/non-atomic trust reload;
+- accidental use of published conformance keys in production;
+- bypass of explicit production trust configuration;
+- unsafe exposure of the loopback trust-admin surface;
+- trust reload that bypasses current key-revocation semantics.
 
 ## Disclosure Process
 
@@ -65,9 +72,11 @@ No guaranteed response or remediation timeline is currently committed for the re
 
 Passing conformance, regression, coverage, and interoperability tests does not constitute a formal security proof.
 
-The current release candidate should be treated as a validated implementation under active hardening rather than as a formally verified enforcement system.
+The current stable release should be treated as a validated implementation under active hardening rather than as a formally verified enforcement system.
 
-Architecture, threat-model, conformance, and release documentation should be reviewed before production deployment.
+Architecture, threat-model, conformance, release, and production trust documentation should be reviewed before production deployment.
+
+The optional trust-admin endpoint is a host-local administrative surface, disabled by default and restricted to loopback binding. It is not designed as an externally exposed management API.
 
 ---
 

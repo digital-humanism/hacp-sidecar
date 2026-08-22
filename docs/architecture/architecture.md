@@ -35,12 +35,23 @@ hacp-sidecar/
     ├── budget/                    # Autonomy budget tracking
     │   └── ledger.go              # Atomic token consumption ledger
     │
+    ├── controlplane/              # Gate E distributed control-state client/server logic
+    │
+    ├── trust/                     # Production signer trust state
+    │   ├── snapshot.go            # Validated immutable TrustSnapshot
+    │   ├── store.go               # AtomicTrustStore / read-only KeyResolver
+    │   ├── file_loader.go         # Explicit production trust-file loading
+    │   ├── reload.go              # Explicit validated trust reload
+    │   └── observability.go       # Active trust-state metadata
+    │
     ├── provenance/                # Audit trail
     │   ├── ring.go                # Ring buffer with async flush
     │   └── noop.go                # No-op writer for conformance tests
     │
-    └── proxy/                     # HTTP reverse proxy
-        └── handler.go             # Request interception and forwarding
+    ├── proxy/                     # HTTP reverse proxy
+    │   └── handler.go             # Request interception and forwarding
+    │
+    └── scope/                     # Semantic boundary matrix
 ```
 
 ## Components
@@ -53,6 +64,8 @@ Main entry point for production use. Runs as a long-lived process that:
 - Invokes evaluation pipeline
 - Forwards ALLOW decisions to upstream
 - Returns DENY with deterministic reason codes
+- Requires explicit production signer trust configuration
+- Optionally exposes loopback-only trust reload/observability
 - Flushes provenance buffer periodically
 
 **Graceful shutdown:** SIGTERM/SIGINT triggers provenance flush and clean exit.
@@ -117,8 +130,47 @@ notation for large numbers (e.g., `1.786e+09` instead of `1786000000`).
 - `ParseEd25519PublicKey` — hex to public key
 
 **`key_resolver.go`:**
-- `StaticKeyResolver` — in-memory key registry
-- `AddKeyFromHex` — load test keys for conformance
+- `KeyResolver` — read-only signer-key resolution contract used by the evaluator
+- `StaticKeyResolver` — in-memory test/reference resolver
+- duplicate identical bindings are idempotent
+- conflicting `signer_key_id` rebinding is rejected
+- `AddKeyFromHex` — load explicit test/reference keys
+
+
+### `internal/trust` — Production Signer Trust
+
+Production signer trust is isolated from the evaluation pipeline behind the existing read-only `KeyResolver` contract.
+
+```text
+TrustStateLoader
+    ↓
+validated TrustSnapshot
+    ↓
+AtomicTrustStore
+    ↓
+KeyResolver
+    ↓
+evaluation pipeline
+```
+
+Current properties:
+- explicit production trust-file configuration;
+- no implicit conformance-key trust in production mode;
+- immutable validated trust snapshots;
+- atomic replacement;
+- defensive public-key copies;
+- signer-ID conflict rejection;
+- revision rollback protection;
+- same-revision/content conflict detection;
+- planned overlap rotation (`old → old + new → new`);
+- explicit runtime reload;
+- active revision/fingerprint/key-count/source/load-time observability.
+
+Trust replacement does not modify revocation state. A key may resolve successfully and still be denied because its `signer_key_id` is revoked.
+
+The optional trust-admin endpoint is disabled by default and may bind only to loopback addresses. It is a host-local administrative surface, not a public management API.
+
+See [`../security/key-lifecycle-and-trust.md`](../security/key-lifecycle-and-trust.md).
 
 ### `internal/evaluate` — Verification Pipeline
 
@@ -322,39 +374,40 @@ to bypass controls. Mitigations include:
 - **Explicit HTTP_PROXY** — agent cannot bypass sidecar without network policy
 - **Fail-closed** — all validation failures result in DENY
 - **Provenance first** — no forward without audit
-- **Revocation staleness** — bounded threshold for control plane sync
+- **Revocation staleness** — configured freshness interval with stale-state fail-closed behavior
 - **No dynamic loading** — all policy is compiled in (no plugin system)
 
 Full threat model: [`hacp-spec/threat-model.md`](https://github.com/digital-humanism/hacp-spec/blob/main/threat-model.md) sections 3.6–3.14.
 
 ## Current Status
 
-**Gates A–D closed.** 
+**Gates A–E closed.**
 
 - Gate A: 38/38 conformance vectors pass
-- Gate B: Data-driven boundary matrix implemented in `internal/scope/matrix.go`
-- Gate C: Docker Compose reference deployment with demo scenarios
-- Gate D: p99 overhead validated (see [postmortem](../engineering/gate-d-benchmark.md) and [technical report](../engineering/gate-d-performance-validation.md))
+- Gate B: data-driven boundary matrix implemented in `internal/scope/`
+- Gate C: native/reference deployment and real upstream forwarding validated
+- Gate D: p99 overhead validated below the 5 ms target
+- Gate E: gRPC distributed control plane, snapshot/replay/recovery, freshness, stale fail-closed behavior, and multi-sidecar convergence validated
+- PH-1A: production signer trust lifecycle hardening implemented and regression-tested
 
-## Future Work
+Current Gate E architecture is documented in:
+- [`distributed-control-plane.md`](distributed-control-plane.md)
+- [`../gates/gate-e-distributed-control-plane.md`](../gates/gate-e-distributed-control-plane.md)
+- [`../engineering/gate-e-engineering-report.md`](../engineering/gate-e-engineering-report.md)
 
-### Gate E: Distributed Control Plane
+## Production Hardening
 
-Replace the current HTTP-based control plane with authenticated gRPC streaming for real-time policy management.
+Current production-hardening work builds on the closed Gates A–E without expanding HACP normative scope.
 
-**Planned features:**
-- Bidirectional streaming for real-time revocations (envelopes, tokens, keys)
-- Policy snapshot sync on sidecar startup
-- Delta updates for incremental policy changes
-- Health checks and operational telemetry
-- Distributed budget ledger with eventual consistency
+PH-1A establishes:
+- explicit production signer trust;
+- immutable/atomic trust snapshots;
+- conflict-safe signer identity binding;
+- revisioned planned rotation;
+- explicit trust reload;
+- loopback-only trust-state administration and observability.
 
-**Implementation plan:**
-- `proto/controlplane.proto` — gRPC service definitions
-- `internal/controlplane/client.go` — streaming gRPC client
-- `internal/evaluate/revocation.go` — integrate streaming revocation updates
-- `cmd/control-plane/` — reference control plane server
-- Hybrid architecture: periodic snapshot pull + push notifications for instant revocation
+Next hardening work is tracked separately from normative protocol evolution.
 
 ## References
 
