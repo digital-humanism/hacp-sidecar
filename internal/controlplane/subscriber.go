@@ -112,8 +112,8 @@ func (s *Subscriber) setLastSeenRevision(revision uint64) {
 //	→ reconnect/replay
 //	→ snapshot recovery when replay is unavailable
 func (s *Subscriber) Run(ctx context.Context) error {
-	if err := s.loadSnapshot(ctx); err != nil {
-		return fmt.Errorf("load revocation snapshot: %w", err)
+	if err := s.loadInitialSnapshot(ctx); err != nil {
+		return err
 	}
 
 	var backoff time.Duration
@@ -164,6 +164,52 @@ func (s *Subscriber) Run(ctx context.Context) error {
 		)
 
 		if err := waitForReconnect(ctx, backoff); err != nil {
+			return err
+		}
+	}
+}
+
+// loadInitialSnapshot establishes the first complete distributed control
+// state before watch processing begins.
+//
+// Temporary snapshot failures keep the subscriber alive and the local
+// ControlState non-fresh. The subscriber retries with the same bounded
+// reconnect backoff used by the watch lifecycle.
+//
+// Cancellation stops retry immediately.
+func (s *Subscriber) loadInitialSnapshot(
+	ctx context.Context,
+) error {
+	var backoff time.Duration
+
+	for {
+		err := s.loadSnapshot(ctx)
+		if err == nil {
+			return nil
+		}
+
+		if ctx.Err() != nil {
+			if s.state != nil {
+				s.state.MarkDisconnected()
+			}
+
+			return ctx.Err()
+		}
+
+		if s.state != nil {
+			s.state.MarkDisconnected()
+		}
+
+		backoff = nextReconnectBackoff(
+			backoff,
+			s.reconnectInitialBackoff,
+			s.reconnectMaxBackoff,
+		)
+
+		if err := waitForReconnect(
+			ctx,
+			backoff,
+		); err != nil {
 			return err
 		}
 	}
