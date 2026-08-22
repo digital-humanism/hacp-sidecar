@@ -13,6 +13,9 @@ func clearControlRuntimeEnv(t *testing.T) {
 	t.Setenv("HACP_CONTROL_PLANE_ADDR", "")
 	t.Setenv("HACP_SIDECAR_ID", "")
 	t.Setenv("HACP_CONTROL_MAX_STALENESS", "")
+	t.Setenv("HACP_CONTROL_TLS_MODE", "")
+	t.Setenv("HACP_CONTROL_CA_FILE", "")
+	t.Setenv("HACP_CONTROL_SERVER_NAME", "")
 }
 
 func TestLoadControlRuntimeConfigDefaultsToStandalone(
@@ -365,6 +368,315 @@ func TestLoadControlRuntimeConfigStandaloneRejectsSidecarID(
 	)
 
 	_, err := loadControlRuntimeConfig()
+	if !errors.Is(
+		err,
+		errAmbiguousStandaloneControl,
+	) {
+		t.Fatalf(
+			"error = %v, want errAmbiguousStandaloneControl",
+			err,
+		)
+	}
+}
+
+func TestLoadControlRuntimeConfigDistributedRequiresTLSByDefault(
+	t *testing.T,
+) {
+	clearControlRuntimeEnv(t)
+
+	t.Setenv(
+		"HACP_CONTROL_MODE",
+		controlModeDistributed,
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_PLANE_ADDR",
+		"control-plane:5000",
+	)
+
+	t.Setenv(
+		"HACP_SIDECAR_ID",
+		"sidecar-1",
+	)
+
+	cfg, err :=
+		loadControlRuntimeConfig()
+
+	if err != nil {
+		t.Fatalf(
+			"loadControlRuntimeConfig() error = %v",
+			err,
+		)
+	}
+
+	if cfg.TLSMode != controlTLSModeRequired {
+		t.Fatalf(
+			"TLS mode = %q, want %q",
+			cfg.TLSMode,
+			controlTLSModeRequired,
+		)
+	}
+}
+
+func TestLoadControlRuntimeConfigDistributedExplicitTLS(
+	t *testing.T,
+) {
+	clearControlRuntimeEnv(t)
+
+	t.Setenv(
+		"HACP_CONTROL_MODE",
+		controlModeDistributed,
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_PLANE_ADDR",
+		"control-plane:5000",
+	)
+
+	t.Setenv(
+		"HACP_SIDECAR_ID",
+		"sidecar-1",
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_TLS_MODE",
+		controlTLSModeRequired,
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_CA_FILE",
+		"/etc/hacp/control-ca.pem",
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_SERVER_NAME",
+		"control-plane.internal",
+	)
+
+	cfg, err :=
+		loadControlRuntimeConfig()
+
+	if err != nil {
+		t.Fatalf(
+			"loadControlRuntimeConfig() error = %v",
+			err,
+		)
+	}
+
+	if cfg.TLSMode != controlTLSModeRequired {
+		t.Fatalf(
+			"TLS mode = %q, want %q",
+			cfg.TLSMode,
+			controlTLSModeRequired,
+		)
+	}
+
+	if cfg.CAFile != "/etc/hacp/control-ca.pem" {
+		t.Fatalf(
+			"CA file = %q, want %q",
+			cfg.CAFile,
+			"/etc/hacp/control-ca.pem",
+		)
+	}
+
+	if cfg.ServerName != "control-plane.internal" {
+		t.Fatalf(
+			"server name = %q, want %q",
+			cfg.ServerName,
+			"control-plane.internal",
+		)
+	}
+}
+
+func TestLoadControlRuntimeConfigDistributedExplicitInsecure(
+	t *testing.T,
+) {
+	clearControlRuntimeEnv(t)
+
+	t.Setenv(
+		"HACP_CONTROL_MODE",
+		controlModeDistributed,
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_PLANE_ADDR",
+		"control-plane:5000",
+	)
+
+	t.Setenv(
+		"HACP_SIDECAR_ID",
+		"sidecar-1",
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_TLS_MODE",
+		controlTLSModeInsecure,
+	)
+
+	cfg, err :=
+		loadControlRuntimeConfig()
+
+	if err != nil {
+		t.Fatalf(
+			"loadControlRuntimeConfig() error = %v",
+			err,
+		)
+	}
+
+	if cfg.TLSMode != controlTLSModeInsecure {
+		t.Fatalf(
+			"TLS mode = %q, want %q",
+			cfg.TLSMode,
+			controlTLSModeInsecure,
+		)
+	}
+}
+
+func TestLoadControlRuntimeConfigRejectsUnsupportedTLSMode(
+	t *testing.T,
+) {
+	clearControlRuntimeEnv(t)
+
+	t.Setenv(
+		"HACP_CONTROL_MODE",
+		controlModeDistributed,
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_PLANE_ADDR",
+		"control-plane:5000",
+	)
+
+	t.Setenv(
+		"HACP_SIDECAR_ID",
+		"sidecar-1",
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_TLS_MODE",
+		"optional",
+	)
+
+	_, err :=
+		loadControlRuntimeConfig()
+
+	if !errors.Is(
+		err,
+		errUnsupportedControlTLSMode,
+	) {
+		t.Fatalf(
+			"error = %v, want errUnsupportedControlTLSMode",
+			err,
+		)
+	}
+}
+
+func TestLoadControlRuntimeConfigRejectsInsecureWithCAFile(
+	t *testing.T,
+) {
+	clearControlRuntimeEnv(t)
+
+	t.Setenv(
+		"HACP_CONTROL_MODE",
+		controlModeDistributed,
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_PLANE_ADDR",
+		"control-plane:5000",
+	)
+
+	t.Setenv(
+		"HACP_SIDECAR_ID",
+		"sidecar-1",
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_TLS_MODE",
+		controlTLSModeInsecure,
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_CA_FILE",
+		"/etc/hacp/control-ca.pem",
+	)
+
+	_, err :=
+		loadControlRuntimeConfig()
+
+	if !errors.Is(
+		err,
+		errInsecureControlTLSOptions,
+	) {
+		t.Fatalf(
+			"error = %v, want errInsecureControlTLSOptions",
+			err,
+		)
+	}
+}
+
+func TestLoadControlRuntimeConfigRejectsInsecureWithServerName(
+	t *testing.T,
+) {
+	clearControlRuntimeEnv(t)
+
+	t.Setenv(
+		"HACP_CONTROL_MODE",
+		controlModeDistributed,
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_PLANE_ADDR",
+		"control-plane:5000",
+	)
+
+	t.Setenv(
+		"HACP_SIDECAR_ID",
+		"sidecar-1",
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_TLS_MODE",
+		controlTLSModeInsecure,
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_SERVER_NAME",
+		"control-plane.internal",
+	)
+
+	_, err :=
+		loadControlRuntimeConfig()
+
+	if !errors.Is(
+		err,
+		errInsecureControlTLSOptions,
+	) {
+		t.Fatalf(
+			"error = %v, want errInsecureControlTLSOptions",
+			err,
+		)
+	}
+}
+
+func TestLoadControlRuntimeConfigStandaloneRejectsTLSConfiguration(
+	t *testing.T,
+) {
+	clearControlRuntimeEnv(t)
+
+	t.Setenv(
+		"HACP_CONTROL_MODE",
+		controlModeStandalone,
+	)
+
+	t.Setenv(
+		"HACP_CONTROL_TLS_MODE",
+		controlTLSModeRequired,
+	)
+
+	_, err :=
+		loadControlRuntimeConfig()
+
 	if !errors.Is(
 		err,
 		errAmbiguousStandaloneControl,
