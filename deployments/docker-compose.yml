@@ -3,10 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.upstream
-    ports:
-      - "8000:8000"
     networks:
-      - hacp-net
+      - protected-net
 
   control-plane:
     build:
@@ -15,7 +13,7 @@ services:
     ports:
       - "5000:5000"
     networks:
-      - hacp-net
+      - control-net
 
   sidecar:
     build:
@@ -25,13 +23,19 @@ services:
       HACP_SIDECAR_PORT: "8080"
       HACP_PROVENANCE_FLUSH_PATH: "/var/log/hacp/provenance.jsonl"
       HACP_UPSTREAM: "http://upstream:8000"
+
+      # This Compose file is an integration deployment.
+      # Production deployments must use explicit production trust configuration.
+      HACP_TRUST_MODE: "test"
     ports:
       - "8080:8080"
     depends_on:
       - upstream
       - control-plane
     networks:
-      - hacp-net
+      - untrusted-net
+      - protected-net
+      - control-net
     volumes:
       - provenance-data:/var/log/hacp
 
@@ -41,10 +45,17 @@ services:
     depends_on:
       - sidecar
     networks:
-      - hacp-net
+      - untrusted-net
 
 networks:
-  hacp-net:
+  untrusted-net:
+    driver: bridge
+
+  protected-net:
+    driver: bridge
+    internal: true
+
+  control-net:
     driver: bridge
 
 volumes:

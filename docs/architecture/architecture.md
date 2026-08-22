@@ -389,6 +389,8 @@ Full threat model: [`hacp-spec/threat-model.md`](https://github.com/digital-huma
 - Gate D: p99 overhead validated below the 5 ms target
 - Gate E: gRPC distributed control plane, snapshot/replay/recovery, freshness, stale fail-closed behavior, and multi-sidecar convergence validated
 - PH-1A: production signer trust lifecycle hardening implemented and regression-tested
+- PH-1B.1: D3 reference network topology implemented and runtime-validated
+- PH-1B.2: automated anti-bypass deployment verification implemented with 5/5 passing checks
 
 Current Gate E architecture is documented in:
 - [`distributed-control-plane.md`](distributed-control-plane.md)
@@ -406,6 +408,33 @@ PH-1A establishes:
 - revisioned planned rotation;
 - explicit trust reload;
 - loopback-only trust-state administration and observability.
+
+PH-1B establishes deployment-level execution-path control without changing HACP normative semantics:
+
+- untrusted and protected network separation;
+- sidecar as the only bridge into the protected execution zone;
+- no protected-upstream host publication;
+- direct agent-to-upstream access blocked;
+- no permissive fallback as a D3 requirement;
+- automated anti-bypass regression verification.
+
+Reference topology:
+
+```text
+agent
+  |
+  | untrusted-net
+  v
+sidecar
+  |
+  | protected-net
+  v
+upstream
+````
+
+The sidecar is an explicit enforcement point, not an operating-system interception mechanism. D3 therefore requires infrastructure controls that make the protected execution path non-bypassable.
+
+See [`../security/anti-bypass-deployment.md`](../security/anti-bypass-deployment.md).
 
 Next hardening work is tracked separately from normative protocol evolution.
 

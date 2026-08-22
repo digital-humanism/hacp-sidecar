@@ -41,3 +41,32 @@ jobs:
       - name: Full regression
         working-directory: hacp-sidecar
         run: go test ./... -count=1
+
+  anti-bypass:
+    name: PH-1B anti-bypass deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout hacp-sidecar
+        uses: actions/checkout@v5
+        with:
+          path: hacp-sidecar
+
+      - name: Verify Docker Compose
+        run: docker compose version
+
+      - name: Run anti-bypass deployment tests
+        working-directory: hacp-sidecar
+        run: sh ./scripts/test-anti-bypass.sh
+
+      - name: Show deployment state on failure
+        if: failure()
+        working-directory: hacp-sidecar
+        run: |
+          docker compose -f deployments/docker-compose.yml ps
+          docker compose -f deployments/docker-compose.yml logs --no-color
+
+      - name: Clean up deployment
+        if: always()
+        working-directory: hacp-sidecar
+        run: docker compose -f deployments/docker-compose.yml down -v

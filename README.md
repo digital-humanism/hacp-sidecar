@@ -168,6 +168,7 @@ full Go regression            PASS
 - ✅ high-rate rotating-token benchmark
 - ✅ shared-token load characterization
 - ✅ GitHub Actions regression workflow
+- ✅ PH-1B anti-bypass deployment verification — 5/5
 
 ---
 
@@ -590,6 +591,30 @@ go vet ./...
 
 Runtime changes should not be committed without passing the relevant tests.
 
+## Anti-bypass deployment verification
+
+Windows:
+
+```powershell
+.\scripts\test-anti-bypass.ps1
+````
+
+Linux / CI:
+
+```bash
+sh ./scripts/test-anti-bypass.sh
+```
+
+Expected:
+
+```text
+Result: 5 passed, 0 failed
+```
+
+The deployment test verifies that the untrusted agent can reach the sidecar, cannot directly reach the protected upstream, the upstream has no host port bindings, the sidecar retains protected-upstream connectivity, and Docker network membership preserves the D3 anti-bypass boundary.
+
+See [`docs/security/anti-bypass-deployment.md`](docs/security/anti-bypass-deployment.md).
+
 ---
 
 # Conformance
@@ -914,7 +939,7 @@ Gate E / distributed control plane
 
 # CI
 
-GitHub Actions runs the Gate E integration suite and the full Go regression.
+GitHub Actions runs the Gate E integration suite, the full Go regression, and the PH-1B anti-bypass deployment verification.
 
 Workflow:
 

@@ -25,6 +25,7 @@
 ## Security and Production Hardening
 
 - [Key Lifecycle and Trust Configuration](security/key-lifecycle-and-trust.md)
+- [Anti-Bypass Deployment Hardening](security/anti-bypass-deployment.md)
 
 ## Verification
 

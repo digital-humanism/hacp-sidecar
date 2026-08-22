@@ -47,6 +47,9 @@ Reports are especially important for issues involving:
 - provenance integrity;
 - authorization bypass through malformed wire inputs;
 - sidecar deployment or configuration that permits enforcement bypass;
+- direct network access to protected upstream services that bypasses the sidecar;
+- permissive infrastructure fallback when the sidecar is unavailable or not ready;
+- deployment topology changes that reconnect untrusted workloads to protected networks;
 - unauthorized signer-key registration or replacement;
 - conflicting `signer_key_id` bindings;
 - trust-state rollback or partial/non-atomic trust reload;
@@ -77,6 +80,10 @@ The current stable release should be treated as a validated implementation under
 Architecture, threat-model, conformance, release, and production trust documentation should be reviewed before production deployment.
 
 The optional trust-admin endpoint is a host-local administrative surface, disabled by default and restricted to loopback binding. It is not designed as an externally exposed management API.
+
+Deployments requiring infrastructure-level anti-bypass guarantees must prevent direct access to protected upstream services. The D3 reference topology separates untrusted and protected networks, does not publish the protected upstream to the host, and verifies these properties through automated deployment tests.
+
+See [`docs/security/anti-bypass-deployment.md`](docs/security/anti-bypass-deployment.md).
 
 ---
 
