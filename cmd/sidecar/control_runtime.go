@@ -15,19 +15,6 @@ var (
 	)
 )
 
-// runtimeRevocationStore is the shared revocation contract required by the
-// sidecar runtime.
-//
-// Both the standalone in-memory store and the distributed control-plane
-// adapter satisfy this interface.
-type runtimeRevocationStore interface {
-	evaluate.RevocationStore
-
-	RevokeKey(string)
-	RevokeToken(string)
-	RevokeEnvelope(string)
-}
-
 // controlRuntime contains the control-plane-related dependencies consumed by
 // the sidecar runtime.
 //
@@ -37,12 +24,22 @@ type runtimeRevocationStore interface {
 // ControlState. The same ControlState is consumed by the evaluator,
 // subscriber, and readiness predicate.
 type controlRuntime struct {
-	Revocations runtimeRevocationStore
+	// Revocations is the read-only revocation view consumed by evaluation.
+	//
+	// Standalone mode uses an in-memory store.
+	// Distributed mode uses the control-plane-backed adapter.
+	Revocations evaluate.RevocationStore
+
+	// LocalRevocations exposes the temporary local HTTP mutation surface only
+	// in standalone mode.
+	//
+	// It is intentionally nil in distributed mode. Distributed revocation
+	// authority belongs exclusively to the control plane.
+	LocalRevocations *evaluate.InMemoryRevocationStore
 
 	ControlState *controlplane.ControlState
 	Subscriber   *controlplane.Subscriber
-
-	Ready func() bool
+	Ready        func() bool
 }
 
 // newControlRuntime constructs the control-plane dependency graph without
@@ -55,8 +52,12 @@ func newControlRuntime(
 
 	switch cfg.Mode {
 	case controlModeStandalone:
+		store :=
+			evaluate.NewInMemoryRevocationStore()
+
 		return &controlRuntime{
-			Revocations: evaluate.NewInMemoryRevocationStore(),
+			Revocations:      store,
+			LocalRevocations: store,
 			Ready: func() bool {
 				return true
 			},

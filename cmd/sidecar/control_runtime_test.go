@@ -7,7 +7,6 @@ import (
 	"time"
 
 	controlplanev1 "hacp-sidecar/gen/controlplane/v1"
-	"hacp-sidecar/internal/evaluate"
 
 	"google.golang.org/grpc"
 )
@@ -62,6 +61,18 @@ func TestNewControlRuntimeStandalone(
 	if runtime.Revocations == nil {
 		t.Fatal(
 			"expected standalone revocation store",
+		)
+	}
+
+	if runtime.LocalRevocations == nil {
+		t.Fatal(
+			"standalone runtime must expose local revocation mutations",
+		)
+	}
+
+	if runtime.Revocations != runtime.LocalRevocations {
+		t.Fatal(
+			"standalone evaluator and local mutation API must share one revocation store",
 		)
 	}
 
@@ -283,21 +294,40 @@ func TestNewControlRuntimeDistributedReadinessTracksSharedState(
 	}
 }
 
-func TestRuntimeRevocationStoreStandaloneContract(
+func TestNewControlRuntimeDistributedDisablesLocalRevocationMutation(
 	t *testing.T,
 ) {
+	cfg :=
+		controlRuntimeConfig{
+			Mode:         controlModeDistributed,
+			Address:      "control-plane:5000",
+			SidecarID:    "sidecar-1",
+			MaxStaleness: defaultControlMaxStaleness,
+		}
 
-	var store runtimeRevocationStore = evaluate.NewInMemoryRevocationStore()
+	runtime, err :=
+		newControlRuntime(
+			cfg,
+			runtimeTestControlPlaneClient{},
+			time.Now,
+		)
 
-	store.RevokeToken(
-		"token-standalone-001",
-	)
+	if err != nil {
+		t.Fatalf(
+			"newControlRuntime() error = %v",
+			err,
+		)
+	}
 
-	if !store.IsTokenRevoked(
-		"token-standalone-001",
-	) {
+	if runtime.LocalRevocations != nil {
 		t.Fatal(
-			"standalone runtime store did not preserve revocation",
+			"distributed runtime must not expose local revocation mutations",
+		)
+	}
+
+	if runtime.Revocations == nil {
+		t.Fatal(
+			"distributed runtime must provide evaluator revocation state",
 		)
 	}
 }
