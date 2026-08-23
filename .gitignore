@@ -46,3 +46,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Restricted engineering and maintainer material.
+# Kept locally and shared selectively with reviewers/auditors.
+.restricted/
