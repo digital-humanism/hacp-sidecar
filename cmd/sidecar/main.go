@@ -12,6 +12,7 @@ import (
 
 	controlplanev1 "hacp-sidecar/gen/controlplane/v1"
 	"hacp-sidecar/internal/budget"
+	"hacp-sidecar/internal/controlplane"
 	"hacp-sidecar/internal/evaluate"
 	"hacp-sidecar/internal/provenance"
 	"hacp-sidecar/internal/proxy"
@@ -184,8 +185,10 @@ func main() {
 	// Standalone mode intentionally leaves ControlState nil.
 	// Distributed mode shares this exact ControlState with the
 	// subscriber and readiness predicate.
-	pipeline.ControlState =
-		controlRuntime.ControlState
+	attachControlState(
+		pipeline,
+		controlRuntime.ControlState,
+	)
 
 	handler :=
 		proxy.NewHandler(
@@ -344,6 +347,15 @@ func main() {
 	}
 
 	provLog.Stop()
+}
+
+func attachControlState(
+	pipeline *evaluate.Pipeline,
+	state *controlplane.ControlState,
+) {
+	if state != nil {
+		pipeline.ControlState = state
+	}
 }
 
 func registerRevocationRoutes(

@@ -7,6 +7,8 @@ import (
 	"time"
 
 	controlplanev1 "hacp-sidecar/gen/controlplane/v1"
+	"hacp-sidecar/internal/controlplane"
+	"hacp-sidecar/internal/evaluate"
 
 	"google.golang.org/grpc"
 )
@@ -328,6 +330,45 @@ func TestNewControlRuntimeDistributedDisablesLocalRevocationMutation(
 	if runtime.Revocations == nil {
 		t.Fatal(
 			"distributed runtime must provide evaluator revocation state",
+		)
+	}
+}
+
+func TestAttachControlStateStandaloneLeavesEvaluatorGuardNil(
+	t *testing.T,
+) {
+	pipeline := &evaluate.Pipeline{}
+
+	attachControlState(
+		pipeline,
+		nil,
+	)
+
+	if pipeline.ControlState != nil {
+		t.Fatal(
+			"standalone runtime must leave evaluator ControlStateGuard nil",
+		)
+	}
+}
+
+func TestAttachControlStateDistributedInstallsEvaluatorGuard(
+	t *testing.T,
+) {
+	pipeline := &evaluate.Pipeline{}
+
+	state :=
+		controlplane.NewControlState(
+			defaultControlMaxStaleness,
+		)
+
+	attachControlState(
+		pipeline,
+		state,
+	)
+
+	if pipeline.ControlState == nil {
+		t.Fatal(
+			"distributed runtime must install evaluator ControlStateGuard",
 		)
 	}
 }
