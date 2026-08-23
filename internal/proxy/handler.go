@@ -147,7 +147,7 @@ func (h *Handler) ServeHTTP(
 
 	reqCtx := &evaluate.RequestContext{
 		Method:      r.Method,
-		Path:        r.URL.Path,
+		Path:        requestBindingPath(r),
 		ToolName:    r.Header.Get("X-HACP-Tool-Name"),
 		PayloadHash: payloadHash,
 
@@ -279,6 +279,10 @@ func (h *Handler) respondDeny(
 		err,
 		latency,
 	)
+}
+
+func requestBindingPath(r *http.Request) string {
+	return r.URL.RequestURI()
 }
 
 // forwardUpstream forwards an already-authorized request to the real
