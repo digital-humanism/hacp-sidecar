@@ -448,6 +448,41 @@ Next hardening work is tracked separately from normative protocol evolution.
 - Runner Protocol: [`hacp-spec/harness/runner_protocol.md`](https://github.com/digital-humanism/hacp-spec/blob/main/harness/runner_protocol.md)
 
 
+### HTTP Request Path Binding
+
+For HTTP enforcement, the sidecar binds `DecisionToken.constraints.path`
+against the request path including the query string, excluding scheme and
+authority.
+
+The binding value is derived from the HTTP request target represented by
+`RequestURI()` and is carried into the evaluator through
+`RequestContext.Path`.
+
+For example:
+
+```text
+Authorized path: /transfer?account=A
+Actual request:  /transfer?account=A
+Result:          binding match
+
+Authorized path: /transfer?account=A
+Actual request:  /transfer?account=B
+Result:          DENY / SCOPE_EXCEEDED
+```
+
+The same query-inclusive request target is forwarded upstream after an
+`ALLOW` decision. This preserves the invariant that the request path checked
+by authorization is the request path executed by the protected upstream.
+
+### Standalone and Distributed Control-State Wiring
+
+In standalone mode, no distributed `ControlState` freshness guard is attached
+to the evaluator. In distributed mode, the evaluator, subscriber, and
+readiness predicate share the same concrete `ControlState`.
+
+This separation ensures that distributed freshness semantics are applied only
+when distributed control state is actually configured.
+
 ---
 
 **Contact:** [digital.humanism.collective@protonmail.com](mailto:digital.humanism.collective@protonmail.com)

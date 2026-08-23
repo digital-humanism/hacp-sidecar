@@ -1049,6 +1049,12 @@ Performance-sensitive changes should run the Gate D benchmark suite.
 
 ---
 
+### HTTP Request Binding
+
+For HTTP requests, `DecisionToken.constraints.path` is matched against the
+query-inclusive request path, for example `/resource?id=123`. A mismatch
+fails closed with `SCOPE_EXCEEDED`.
+
 # Contact
 
 **Digital Humanism Collective**
