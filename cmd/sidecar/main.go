@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -9,10 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	controlplanev1 "hacp-sidecar/gen/controlplane/v1"
 	"hacp-sidecar/internal/budget"
 	"hacp-sidecar/internal/evaluate"
 	"hacp-sidecar/internal/provenance"
 	"hacp-sidecar/internal/proxy"
+
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -49,10 +53,26 @@ func main() {
 	}
 
 	// ============================================================
-	// Dependencies
+	// Startup configuration
 	// ============================================================
 
-	keyResolver, err := loadStartupTrustStore()
+	controlConfig, err :=
+		loadControlRuntimeConfig()
+
+	if err != nil {
+		log.Fatalf(
+			"failed to load control-plane configuration: %v",
+			err,
+		)
+	}
+
+	// ============================================================
+	// Trust
+	// ============================================================
+
+	keyResolver, err :=
+		loadStartupTrustStore()
+
 	if err != nil {
 		log.Fatalf(
 			"failed to load trust configuration: %v",
@@ -60,8 +80,85 @@ func main() {
 		)
 	}
 
-	revocation :=
-		evaluate.NewInMemoryRevocationStore()
+	// ============================================================
+	// Control-plane runtime
+	// ============================================================
+
+	var controlConn *grpc.ClientConn
+
+	var controlClient controlplanev1.ControlPlaneClient
+
+	if controlConfig.Mode == controlModeDistributed {
+
+		transportCredentials, err :=
+			buildControlTransportCredentials(
+				controlConfig,
+			)
+
+		if err != nil {
+			log.Fatalf(
+				"failed to build control-plane transport credentials: %v",
+				err,
+			)
+		}
+
+		controlConn, err =
+			grpc.NewClient(
+				controlConfig.Address,
+				grpc.WithTransportCredentials(
+					transportCredentials,
+				),
+			)
+
+		if err != nil {
+			log.Fatalf(
+				"failed to create control-plane client: %v",
+				err,
+			)
+		}
+
+		defer func() {
+			if err :=
+				controlConn.Close(); err != nil {
+
+				log.Printf(
+					"control-plane connection close error: %v",
+					err,
+				)
+			}
+		}()
+
+		controlClient =
+			controlplanev1.NewControlPlaneClient(
+				controlConn,
+			)
+
+		if controlConfig.TLSMode ==
+			controlTLSModeInsecure {
+
+			log.Printf(
+				"WARNING: control-plane transport is explicitly configured as insecure",
+			)
+		}
+	}
+
+	controlRuntime, err :=
+		newControlRuntime(
+			controlConfig,
+			controlClient,
+			time.Now,
+		)
+
+	if err != nil {
+		log.Fatalf(
+			"failed to construct control-plane runtime: %v",
+			err,
+		)
+	}
+
+	// ============================================================
+	// Evaluation dependencies
+	// ============================================================
 
 	budgetLedger :=
 		budget.NewLedger()
@@ -78,11 +175,17 @@ func main() {
 	pipeline :=
 		evaluate.NewPipeline(
 			keyResolver,
-			revocation,
+			controlRuntime.Revocations,
 			budgetLedger,
 			scopeGuard,
 			provLog,
 		)
+
+	// Standalone mode intentionally leaves ControlState nil.
+	// Distributed mode shares this exact ControlState with the
+	// subscriber and readiness predicate.
+	pipeline.ControlState =
+		controlRuntime.ControlState
 
 	handler :=
 		proxy.NewHandler(
@@ -91,15 +194,51 @@ func main() {
 			upstream,
 		)
 
-	trustAdminServer, err := startTrustAdminServer(
-		keyResolver,
-		os.Getenv("HACP_TRUST_KEYS_FILE"),
-	)
+	trustAdminServer, err :=
+		startTrustAdminServer(
+			keyResolver,
+			os.Getenv("HACP_TRUST_KEYS_FILE"),
+		)
+
 	if err != nil {
-		log.Fatalf("failed to start trust admin server: %v", err)
+		log.Fatalf(
+			"failed to start trust admin server: %v",
+			err,
+		)
 	}
+
 	if trustAdminServer != nil {
-		log.Printf("trust admin listening on %s", trustAdminServer.Addr)
+		log.Printf(
+			"trust admin listening on %s",
+			trustAdminServer.Addr,
+		)
+	}
+
+	// ============================================================
+	// Distributed subscriber
+	// ============================================================
+
+	if controlRuntime.Subscriber != nil {
+
+		go func() {
+
+			err :=
+				controlRuntime.Subscriber.Run(
+					ctx,
+				)
+
+			if err != nil &&
+				!errors.Is(
+					err,
+					context.Canceled,
+				) {
+
+				log.Printf(
+					"control-plane subscriber stopped: %v",
+					err,
+				)
+			}
+		}()
 	}
 
 	// ============================================================
@@ -129,38 +268,13 @@ func main() {
 	mux.HandleFunc(
 		"/readyz",
 		makeReadinessHandler(
-			func() bool {
-				// Standalone runtime has no configured distributed
-				// control-state dependency. Mandatory trust
-				// initialization has already completed successfully
-				// before the HTTP server starts.
-				return true
-			},
+			controlRuntime.Ready,
 		),
 	)
 
-	mux.HandleFunc(
-		"/revoke/token",
-		makeRevokeHandler(
-			revocation,
-			"token",
-		),
-	)
-
-	mux.HandleFunc(
-		"/revoke/envelope",
-		makeRevokeHandler(
-			revocation,
-			"envelope",
-		),
-	)
-
-	mux.HandleFunc(
-		"/revoke/key",
-		makeRevokeHandler(
-			revocation,
-			"key",
-		),
+	registerRevocationRoutes(
+		mux,
+		controlRuntime.LocalRevocations,
 	)
 
 	mux.Handle(
@@ -179,10 +293,11 @@ func main() {
 	go func() {
 
 		log.Printf(
-			"hacp-sidecar listening on :%s (upstream: %s provenance: %s)",
+			"hacp-sidecar listening on :%s (upstream: %s provenance: %s control-mode: %s)",
 			port,
 			upstream,
 			provenancePath,
+			controlConfig.Mode,
 		)
 
 		err :=
@@ -217,9 +332,10 @@ func main() {
 
 	defer shutdownCancel()
 
-	if err := server.Shutdown(
-		shutdownCtx,
-	); err != nil {
+	if err :=
+		server.Shutdown(
+			shutdownCtx,
+		); err != nil {
 
 		log.Printf(
 			"server shutdown error: %v",
@@ -230,10 +346,75 @@ func main() {
 	provLog.Stop()
 }
 
-// makeRevokeHandler creates the temporary HTTP revocation API.
+func registerRevocationRoutes(
+	mux *http.ServeMux,
+	store *evaluate.InMemoryRevocationStore,
+) {
+
+	if store != nil {
+
+		mux.HandleFunc(
+			"/revoke/token",
+			makeRevokeHandler(
+				store,
+				"token",
+			),
+		)
+
+		mux.HandleFunc(
+			"/revoke/envelope",
+			makeRevokeHandler(
+				store,
+				"envelope",
+			),
+		)
+
+		mux.HandleFunc(
+			"/revoke/key",
+			makeRevokeHandler(
+				store,
+				"key",
+			),
+		)
+
+		return
+	}
+
+	// Distributed mode reserves the legacy local revocation paths
+	// and fails them locally. They must never fall through to the
+	// protected upstream.
+	unavailable :=
+		func(
+			w http.ResponseWriter,
+			r *http.Request,
+		) {
+
+			http.NotFound(
+				w,
+				r,
+			)
+		}
+
+	mux.HandleFunc(
+		"/revoke/token",
+		unavailable,
+	)
+
+	mux.HandleFunc(
+		"/revoke/envelope",
+		unavailable,
+	)
+
+	mux.HandleFunc(
+		"/revoke/key",
+		unavailable,
+	)
+}
+
+// makeRevokeHandler creates the temporary standalone HTTP revocation API.
 //
-// Gate E is expected to replace this management surface with the
-// distributed control channel.
+// Distributed mode does not expose this mutation surface. Distributed
+// revocation authority belongs exclusively to the control plane.
 func makeRevokeHandler(
 	store *evaluate.InMemoryRevocationStore,
 	kind string,
