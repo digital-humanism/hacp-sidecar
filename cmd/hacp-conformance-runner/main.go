@@ -46,6 +46,12 @@ type InputData struct {
 	PolicyContext   json.RawMessage `json:"policy_context"`
 	Checkpoint      json.RawMessage `json:"checkpoint,omitempty"`
 	ProvenanceEvent json.RawMessage `json:"provenance_event,omitempty"`
+	HTTPRequest     json.RawMessage `json:"http_request,omitempty"`
+}
+
+type httpRequestJSON struct {
+	Method        string `json:"method"`
+	RequestTarget string `json:"request_target"`
 }
 
 type policyContextJSON struct {
@@ -428,13 +434,33 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 
 	}
 
+	requestMethod := "EVALUATE"
+	requestPath := "/conformance"
+
+	if !isJSONNull(input.HTTPRequest) {
+		var httpReq httpRequestJSON
+		if err := json.Unmarshal(input.HTTPRequest, &httpReq); err != nil {
+			return r.errorResponse(
+				fmt.Sprintf("http_request parse: %v", err),
+			)
+		}
+
+		if httpReq.Method != "" {
+			requestMethod = httpReq.Method
+		}
+
+		if httpReq.RequestTarget != "" {
+			requestPath = httpReq.RequestTarget
+		}
+	}
+
 	// ============================================================
 	// Build request context
 	// ============================================================
 
 	reqCtx := &evaluate.RequestContext{
-		Method:         "EVALUATE",
-		Path:           "/conformance",
+		Method:         requestMethod,
+		Path:           requestPath,
 		RequestID:      req.VectorID,
 		Timestamp:      time.Now(),
 		Clock:          policy.Clock,
