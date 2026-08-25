@@ -25,7 +25,7 @@ func (g *DefaultScopeGuard) MatchRequestConstraints(constraints *wire.Constraint
 		return false
 	}
 
-	if constraints.Path != "" && constraints.Path != req.Path {
+	if constraints.Path != "" && !equalRequestTarget(constraints.Path, req.Path) {
 		return false
 	}
 
@@ -90,4 +90,47 @@ func (g *DefaultScopeGuard) CheckBoundary(scopeGrant *wire.ScopeGrant, req *Requ
 	}
 	return true
 
+}
+
+func equalRequestTarget(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := 0; i < len(a); i++ {
+		if a[i] == '%' && b[i] == '%' && i+2 < len(a) &&
+			isHex(a[i+1]) && isHex(a[i+2]) &&
+			isHex(b[i+1]) && isHex(b[i+2]) {
+
+			if !equalHex(a[i+1], b[i+1]) ||
+				!equalHex(a[i+2], b[i+2]) {
+				return false
+			}
+
+			i += 2
+			continue
+		}
+
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func isHex(c byte) bool {
+	return c >= '0' && c <= '9' ||
+		c >= 'a' && c <= 'f' ||
+		c >= 'A' && c <= 'F'
+}
+
+func equalHex(a, b byte) bool {
+	if a >= 'A' && a <= 'F' {
+		a += 'a' - 'A'
+	}
+	if b >= 'A' && b <= 'F' {
+		b += 'a' - 'A'
+	}
+	return a == b
 }
