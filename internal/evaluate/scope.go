@@ -88,8 +88,23 @@ func (g *DefaultScopeGuard) CheckBoundary(scopeGrant *wire.ScopeGrant, req *Requ
 			return false
 		}
 	}
-	return true
 
+	if len(scopeGrant.ToolNames) > 0 {
+		allowed := false
+
+		for _, toolName := range scopeGrant.ToolNames {
+			if toolName == req.ToolName {
+				allowed = true
+				break
+			}
+		}
+
+		if !allowed {
+			return false
+		}
+	}
+
+	return true
 }
 
 func equalRequestTarget(a, b string) bool {
