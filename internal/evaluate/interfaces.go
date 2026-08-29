@@ -77,7 +77,7 @@ type ScopeGuard interface {
 	CheckBoundary(
 		scope *wire.ScopeGrant,
 		req *RequestContext,
-	) bool
+	) (bool, string)
 }
 
 // ============================================================
@@ -278,6 +278,7 @@ const (
 	ReasonEnvelopeExpired   = "ENVELOPE_EXPIRED"
 	ReasonTokenExpired      = "TOKEN_EXPIRED"
 	ReasonScopeExceeded     = "SCOPE_EXCEEDED"
+	ReasonBoundaryCrossing  = "BOUNDARY_CROSSING"
 	ReasonBudgetExhausted   = "BUDGET_EXHAUSTED"
 	ReasonTraceabilityFail  = "TRACEABILITY_FAILURE"
 	ReasonPolicyDenied      = "POLICY_DENIED"

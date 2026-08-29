@@ -41,31 +41,36 @@ func (g *DefaultScopeGuard) MatchRequestConstraints(constraints *wire.Constraint
 }
 
 // CheckBoundary evaluates boundary matrix per hacp-spec/boundary-matrix.md.
-// Returns false if any boundary crossing results in DENY.
-// For MVP, CHECKPOINT and REAUTHORIZE are treated as ALLOW (future: proper handling).
-func (g *DefaultScopeGuard) CheckBoundary(scopeGrant *wire.ScopeGrant, req *RequestContext) bool {
+// Returns whether the request is inside the granted envelope scope and,
+// on failure, the normative primary reason code.
+func (g *DefaultScopeGuard) CheckBoundary(
+	scopeGrant *wire.ScopeGrant,
+	req *RequestContext,
+) (bool, string) {
 	if scopeGrant == nil {
-		return false
+		return false, ReasonScopeExceeded
 	}
 
 	// If no proposed action is available, skip boundary check
 	// (this handles HTTP proxy mode without proposed_action)
 	// Note: len() for nil slices is defined as zero, so nil check is redundant.
 	if len(req.ProposedAction) == 0 {
-		return true
+		return true, ""
 	}
 
 	// Parse proposed action attributes
 	attrs, err := scope.ParseProposedActionAttributes(req.ProposedAction)
 	if err != nil {
-		return false // Fail closed on parse error
+		return false, ReasonScopeExceeded
 	}
 
 	if attrs == nil {
-		return true // No attributes to check
+		return true, ""
 	}
 
-	// Check each attribute against the boundary matrix
+	// Check each attribute against the boundary matrix.
+	// Existing reason-code behavior is preserved here; this review
+	// changes only the proven tool_name allowlist violation.
 	checks := []struct {
 		attr          scope.AttributeType
 		scopeValues   []string
@@ -80,12 +85,14 @@ func (g *DefaultScopeGuard) CheckBoundary(scopeGrant *wire.ScopeGrant, req *Requ
 	}
 
 	for _, check := range checks {
-		action := scope.EvaluateBoundaryCrossing(check.attr, check.scopeValues, check.proposedValue)
-		// In HTTP proxy mode, only explicit ALLOW passes.
-		// CHECKPOINT and REAUTHORIZE outcomes are treated as DENY at the proxy boundary;
-		// full re-auth / checkpoint flow will be implemented in Gate E (gRPC control plane).
+		action := scope.EvaluateBoundaryCrossing(
+			check.attr,
+			check.scopeValues,
+			check.proposedValue,
+		)
+
 		if action != scope.ActionAllow {
-			return false
+			return false, ReasonScopeExceeded
 		}
 	}
 
@@ -100,11 +107,11 @@ func (g *DefaultScopeGuard) CheckBoundary(scopeGrant *wire.ScopeGrant, req *Requ
 		}
 
 		if !allowed {
-			return false
+			return false, ReasonBoundaryCrossing
 		}
 	}
 
-	return true
+	return true, ""
 }
 
 func equalRequestTarget(a, b string) bool {

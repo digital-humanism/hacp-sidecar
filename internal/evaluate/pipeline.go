@@ -318,12 +318,13 @@ func (p *Pipeline) Evaluate(
 				)
 			}
 
-			if !p.ScopeGuard.CheckBoundary(
+			boundaryOK, boundaryReason := p.ScopeGuard.CheckBoundary(
 				env.Scope,
 				req,
-			) {
+			)
+			if !boundaryOK {
 				return DenyDecision(
-					ReasonScopeExceeded,
+					boundaryReason,
 					errors.New(
 						"autonomous action exceeds envelope scope",
 					),
@@ -551,12 +552,13 @@ func (p *Pipeline) Evaluate(
 	// Step 16: Scope containment / boundary matrix
 	// ============================================================
 
-	if !p.ScopeGuard.CheckBoundary(
+	boundaryOK, boundaryReason := p.ScopeGuard.CheckBoundary(
 		env.Scope,
 		req,
-	) {
+	)
+	if !boundaryOK {
 		return DenyDecision(
-			ReasonScopeExceeded,
+			boundaryReason,
 			errors.New(
 				"boundary crossing / scope exceeded",
 			),

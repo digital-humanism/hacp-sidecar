@@ -119,11 +119,13 @@ func TestServeHTTPRejectsToolOutsideEnvelopeScope(t *testing.T) {
 		)
 	}
 
-	if got := rec.Header().Get("X-HACP-Reason"); got != evaluate.ReasonScopeExceeded {
+	const wantReason = "BOUNDARY_CROSSING"
+
+	if got := rec.Header().Get("X-HACP-Reason"); got != wantReason {
 		t.Fatalf(
 			"X-HACP-Reason = %q, want %q",
 			got,
-			evaluate.ReasonScopeExceeded,
+			wantReason,
 		)
 	}
 
