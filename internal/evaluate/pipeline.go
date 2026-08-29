@@ -118,7 +118,7 @@ func (p *Pipeline) Evaluate(
 		case CheckpointStateOpen:
 			if cp.ExpiresAt > 0 && now > cp.ExpiresAt {
 				return DenyDecision(
-					ReasonCheckpointExpired,
+					ReasonCheckpointTimeout,
 					errors.New("checkpoint expired"),
 				)
 			}
@@ -136,7 +136,7 @@ func (p *Pipeline) Evaluate(
 
 		case CheckpointStateExpired:
 			return DenyDecision(
-				ReasonCheckpointExpired,
+				ReasonCheckpointTimeout,
 				errors.New("checkpoint expired"),
 			)
 
@@ -241,14 +241,14 @@ func (p *Pipeline) Evaluate(
 
 		if cp.State == CheckpointStateExpired {
 			return DenyDecision(
-				ReasonCheckpointExpired,
+				ReasonCheckpointTimeout,
 				errors.New("checkpoint expired"),
 			)
 		}
 
 		if cp.ExpiresAt > 0 && now > cp.ExpiresAt+skew {
 			return DenyDecision(
-				ReasonCheckpointExpired,
+				ReasonCheckpointTimeout,
 				fmt.Errorf(
 					"checkpoint expired: now=%d expires_at=%d",
 					now,

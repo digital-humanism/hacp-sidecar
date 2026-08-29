@@ -291,7 +291,7 @@ func (r *Runner) handleEvaluate(req Request, start time.Time) Response {
 				return Response{
 					ProtocolVersion: ProtocolVersion,
 					Decision:        "DENY",
-					ReasonCodes:     []string{evaluate.ReasonCheckpointExpired},
+					ReasonCodes:     []string{evaluate.ReasonCheckpointTimeout},
 				}
 			}
 		}

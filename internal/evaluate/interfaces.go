@@ -286,7 +286,7 @@ const (
 	// Checkpoint / human-authorization semantics.
 	ReasonHumanRequired      = "HUMAN_REQUIRED"
 	ReasonCheckpointOpen     = "CHECKPOINT_OPEN"
-	ReasonCheckpointExpired  = "CHECKPOINT_EXPIRED"
+	ReasonCheckpointTimeout  = "CHECKPOINT_TIMEOUT"
 	ReasonCheckpointDenied   = "CHECKPOINT_DENIED"
 	ReasonCheckpointInvalid  = "CHECKPOINT_INVALID"
 	ReasonSelfApprovalDenied = "SELF_APPROVAL_DENIED"
