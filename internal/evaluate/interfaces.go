@@ -279,6 +279,7 @@ const (
 	ReasonTokenExpired      = "TOKEN_EXPIRED"
 	ReasonScopeExceeded     = "SCOPE_EXCEEDED"
 	ReasonBoundaryCrossing  = "BOUNDARY_CROSSING"
+	ReasonUnknownAttribute  = "UNKNOWN_ATTRIBUTE"
 	ReasonBudgetExhausted   = "BUDGET_EXHAUSTED"
 	ReasonTraceabilityFail  = "TRACEABILITY_FAILURE"
 	ReasonPolicyDenied      = "POLICY_DENIED"

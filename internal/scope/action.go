@@ -13,6 +13,7 @@ type ProposedActionAttributes struct {
 	Reversibility string
 	Externality   string
 	DataClass     string
+	ToolName      *string
 }
 
 // ParseProposedActionAttributes extracts boundary-relevant attributes
@@ -23,12 +24,13 @@ func ParseProposedActionAttributes(data []byte) (*ProposedActionAttributes, erro
 	}
 
 	var action struct {
-		Verb          string `json:"verb"`
-		ResourceClass string `json:"resource_class"`
-		Audience      string `json:"audience"`
-		Reversibility string `json:"reversibility"`
-		Externality   string `json:"externality"`
-		DataClass     string `json:"data_class"`
+		Verb          string  `json:"verb"`
+		ResourceClass string  `json:"resource_class"`
+		Audience      string  `json:"audience"`
+		Reversibility string  `json:"reversibility"`
+		Externality   string  `json:"externality"`
+		DataClass     string  `json:"data_class"`
+		ToolName      *string `json:"tool_name"`
 	}
 
 	if err := json.Unmarshal(data, &action); err != nil {
@@ -42,5 +44,6 @@ func ParseProposedActionAttributes(data []byte) (*ProposedActionAttributes, erro
 		Reversibility: action.Reversibility,
 		Externality:   action.Externality,
 		DataClass:     action.DataClass,
+		ToolName:      action.ToolName,
 	}, nil
 }

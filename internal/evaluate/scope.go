@@ -104,10 +104,20 @@ func (g *DefaultScopeGuard) CheckBoundary(
 	}
 
 	if len(scopeGrant.ToolNames) > 0 {
+		effectiveToolName := ""
+
+		if attrs.ToolName != nil {
+			effectiveToolName = *attrs.ToolName
+		} else if req.ToolName != "" {
+			effectiveToolName = req.ToolName
+		} else {
+			return false, ReasonUnknownAttribute
+		}
+
 		allowed := false
 
 		for _, toolName := range scopeGrant.ToolNames {
-			if toolName == req.ToolName {
+			if toolName == effectiveToolName {
 				allowed = true
 				break
 			}
