@@ -92,7 +92,8 @@ func (g *DefaultScopeGuard) CheckBoundary(
 		)
 
 		if action != scope.ActionAllow {
-			if check.attr == scope.AttrAudience {
+			if check.attr == scope.AttrAudience ||
+				check.attr == scope.AttrReversibility {
 				return false, ReasonBoundaryCrossing
 			}
 
