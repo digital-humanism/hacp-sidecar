@@ -69,8 +69,7 @@ func (g *DefaultScopeGuard) CheckBoundary(
 	}
 
 	// Check each attribute against the boundary matrix.
-	// Existing reason-code behavior is preserved here; this review
-	// changes only the proven tool_name allowlist violation.
+	// The first violating attribute determines the primary reason code.
 	checks := []struct {
 		attr          scope.AttributeType
 		scopeValues   []string
@@ -100,6 +99,35 @@ func (g *DefaultScopeGuard) CheckBoundary(
 			}
 
 			return false, ReasonScopeExceeded
+		}
+	}
+
+	if scopeGrant.MaxQuantity != nil {
+		if attrs.Quantity == nil {
+			return false, ReasonUnknownAttribute
+		}
+
+		if *attrs.Quantity > *scopeGrant.MaxQuantity {
+			return false, ReasonScopeExceeded
+		}
+	}
+
+	if len(scopeGrant.Destinations) > 0 {
+		if attrs.Destination == nil {
+			return false, ReasonUnknownAttribute
+		}
+
+		allowed := false
+
+		for _, destination := range scopeGrant.Destinations {
+			if destination == *attrs.Destination {
+				allowed = true
+				break
+			}
+		}
+
+		if !allowed {
+			return false, ReasonBoundaryCrossing
 		}
 	}
 

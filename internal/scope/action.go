@@ -13,6 +13,8 @@ type ProposedActionAttributes struct {
 	Reversibility string
 	Externality   string
 	DataClass     string
+	Quantity      *int
+	Destination   *string
 	ToolName      *string
 }
 
@@ -30,6 +32,8 @@ func ParseProposedActionAttributes(data []byte) (*ProposedActionAttributes, erro
 		Reversibility string  `json:"reversibility"`
 		Externality   string  `json:"externality"`
 		DataClass     string  `json:"data_class"`
+		Quantity      *int    `json:"quantity"`
+		Destination   *string `json:"destination"`
 		ToolName      *string `json:"tool_name"`
 	}
 
@@ -44,6 +48,8 @@ func ParseProposedActionAttributes(data []byte) (*ProposedActionAttributes, erro
 		Reversibility: action.Reversibility,
 		Externality:   action.Externality,
 		DataClass:     action.DataClass,
+		Quantity:      action.Quantity,
+		Destination:   action.Destination,
 		ToolName:      action.ToolName,
 	}, nil
 }
