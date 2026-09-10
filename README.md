@@ -553,6 +553,74 @@ go build -o hacp-conformance-runner.exe ./cmd/hacp-conformance-runner
 
 ---
 
+# Native External E2E
+
+The repository includes a reference HTTP upstream that can be used with a
+natively built sidecar for the `humanist-core` Python ↔ Go interoperability
+tests. Docker and the distributed control plane are not required for this
+path.
+
+The commands below assume that `hacp-sidecar` and `humanist-core` are sibling
+repositories.
+
+## 1. Start the reference upstream
+
+From the `hacp-sidecar` repository:
+
+```powershell
+python .\deployments\upstream\server.py 8000
+```
+
+The sidecar uses `http://127.0.0.1:8000` as its default upstream.
+
+## 2. Start the sidecar
+
+In a second terminal, from the `hacp-sidecar` repository:
+
+```powershell
+$env:HACP_TRUST_MODE = "test"
+.\hacp-sidecar.exe
+```
+
+Explicit test mode enables the published conformance test key. Do not use this
+mode as a production trust configuration.
+
+For this native E2E path, the remaining relevant defaults are:
+
+```text
+sidecar address:    http://127.0.0.1:8080
+upstream:           http://127.0.0.1:8000
+provenance output:  ./provenance.jsonl
+control mode:       standalone
+```
+
+No distributed control-plane configuration is required.
+
+## 3. Run the humanist-core external E2E test
+
+In a third terminal, from the sibling `humanist-core` repository:
+
+```powershell
+$env:HACP_SIDECAR_EXTERNAL = "1"
+$env:HACP_SIDECAR_URL = "http://127.0.0.1:8080"
+
+$env:HACP_TEST_PRIVATE_KEY = "<path-to-matching-private-key.pem>"
+$env:HACP_TEST_SIGNER_KEY_ID = "key-ed25519-test-001"
+
+pytest tests\test_hacp_sidecar_integration.py -vv -rs --tb=long
+```
+
+`HACP_TEST_PRIVATE_KEY` must identify the private key corresponding to the
+published conformance public key used by `HACP_TRUST_MODE=test`.
+
+The deterministic test-key derivation and PKCS8 PEM setup are documented in
+the `humanist-core` integration guide, `docs/Integration with HACP Sidecar.md`.
+
+The external test mode connects to the already running sidecar; it does not
+start the sidecar process itself.
+
+---
+
 # Test
 
 ## Gate E control-plane suite
