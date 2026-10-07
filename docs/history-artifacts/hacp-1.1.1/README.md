@@ -56,6 +56,48 @@ HISTORICAL_REWRITE=NO
 The preserved historical file is not edited to add this metadata. Its original
 content remains byte-identical to the pre-V2 staged Git blob.
 
+## Rust Behavioral-Boundary Historical Evidence
+
+The repository-owned HACP 1.1.1 history surface preserves two Rust
+behavioral-boundary evidence records:
+
+```text
+HACP_RUST_AUTHORIZATION_V2_BEHAVIORAL_BOUNDARY_ENGINEERING_RECORD.md
+HACP_RUST_BEHAVIORAL_BOUNDARY_REPRODUCTION_REPORT_2026-10-06.md
+```
+
+Their common classification is:
+
+```text
+ROLE=HISTORICAL_RELEASE_ENGINEERING_EVIDENCE
+CURRENT_AUTHORITY=NO
+HISTORICAL_ONLY=YES
+HISTORICAL_REWRITE=NO
+```
+
+Publication provenance differs by artifact:
+
+```text
+ENGINEERING_RECORD_PUBLICATION_FORM=BYTE_IDENTICAL_HISTORICAL_COPY
+REPRODUCTION_REPORT_PUBLICATION_FORM=SANITIZED_HISTORICAL_DERIVATIVE
+SANITIZATION_SCOPE=ENVIRONMENT_LOCAL_PATHS_ONLY
+```
+
+The exact verified source evidence is preserved separately in the controlled
+engineering record. Sanitization does not alter technical conclusions,
+immutable evidence claims, test results, behavioral findings, or historical
+status statements.
+
+For the engineering record, the historical document status is preserved:
+
+```text
+DOCUMENT_STATUS_AT_CAPTURE=UNCOMMITTED_UNPUBLISHED
+CURRENT_PUBLICATION_ROLE=HISTORICAL_EVIDENCE
+```
+
+These artifacts do not change sidecar runtime implementation identity,
+protocol behavior, composition binding, or release authorization.
+
 ## Evidence Navigation Boundary
 
 `ARTIFACT_INDEX.md` provides navigation metadata for relevant immutable
