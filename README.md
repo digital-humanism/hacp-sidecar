@@ -12,13 +12,22 @@ HACP Sidecar is a fail-closed enforcement point between an AI agent and protecte
 
 | Domain | Version |
 |---|---|
-| Sidecar release | `v0.5.0` |
-| HACP specification release | `0.9.3` |
+| Historical sidecar release label | `v0.5.0` |
+| Historical specification release label | `0.9.3` |
+| Current HACP release composition | `1.1.1` — pre-release candidate |
+| Approved stable HACP release | `1.1.0` |
+| Inherited stable baseline | `1.0.0` Variant A |
 | HACP-Core conformance baseline | `0.9.2` |
 | Wire protocol family | `0.9` |
+| Active Enforcement profile | HACP-Enforcement revision 2 |
+| Enforcement evidence set | HC2-55 |
 | Runner Protocol | `1` |
 
 These versions belong to separate release and compatibility domains and MUST NOT be conflated.
+
+HACP 1.1.1 is a pre-release candidate, not an authorized stable release.
+The release composition is distinct from historical standalone sidecar
+and specification labels, the Core suite, wire/object version, and Runner Protocol.
 
 ---
 
@@ -60,7 +69,7 @@ The enforcement pipeline is strictly **fail closed**.
 | **D** | Operational viability — latency / throughput | ✅ Closed |
 | **E** | Distributed management — gRPC control plane | ✅ Closed |
 
-Current canonical conformance result:
+Historical HACP-Core v0.9.2 verification baseline:
 
 ```text
 RESULTS: 38/38 passed
@@ -691,11 +700,17 @@ See [`docs/security/anti-bypass-deployment.md`](docs/security/anti-bypass-deploy
 
 **Status: ✅ Closed**
 
-The sidecar passes all canonical HACP-Core v0.9.2 conformance vectors:
+The historical Go sidecar verification baseline recorded
+the following HACP-Core v0.9.2 result:
 
 ```text
 RESULTS: 38/38 passed
 ```
+
+This historical result does not establish that the legacy HACP-Core
+gate remains enabled in the current V5 verification workflow.
+Current release verification follows the applicable enabled gates
+and release-specific evidence.
 
 Build the runner:
 
@@ -706,16 +721,29 @@ go build -o hacp-conformance-runner.exe ./cmd/hacp-conformance-runner
 Run the canonical harness from the adjacent specification repository:
 
 ```powershell
-cd ...\GitHub\hacp-spec\harness
+$SpecRepo = 'C:\Personal\GitHub\Dev\hacp-spec'
+$SidecarRepo = 'C:\Personal\GitHub\Dev\hacp-sidecar'
 
-python .\harness.py
+python "$SpecRepo\harness\harness_runner.py" `
+    --runner "$SidecarRepo\hacp-conformance-runner.exe" `
+    --vectors-dir "$SpecRepo\vectors" `
+    --manifest "$SpecRepo\harness\conformance_manifest.json" `
+    --implementation-name hacp-sidecar `
+    --output console
 ```
 
-Expected:
+Historical expected output for the recorded Core baseline (not a guarantee
+for the current environment):
 
 ```text
 RESULTS: 38/38 passed
 ```
+
+This is a manual runner-mode reproduction command, not a claim that
+the legacy Core gate is enabled in the current V5 workflow.
+Build the Go runner in the sidecar repository before invoking it.
+The current harness splits `--runner` on whitespace; the executable
+path in this example must not contain spaces.
 
 The harness communicates with implementations through the language-neutral runner protocol.
 
