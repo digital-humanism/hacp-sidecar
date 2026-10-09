@@ -1105,8 +1105,11 @@ The broader human-agency principles that motivate HACP are articulated in the [D
 | [`hacp-spec`](https://github.com/digital-humanism/hacp-spec) | open protocol specification, schemas, vectors, control-plane contract | CC BY 4.0 |
 | [`humanist-core`](https://github.com/digital-humanism/humanist-core) | reference SDK | AGPLv3 + commercial dual |
 | [`hacp-sidecar`](https://github.com/digital-humanism/hacp-sidecar) | enforcement sidecar | AGPLv3 + commercial dual |
+| [`hacp-spec/hacp-rs`](https://github.com/digital-humanism/hacp-spec/tree/admit/hacp-1.1.1-pre-release/hacp-rs) | Rust reference/enforcement implementation | See component-specific licensing in `hacp-spec` |
 
 This separation keeps the protocol itself open and vendor-neutral while allowing implementation repositories to maintain their own sustainability model.
+
+For HACP 1.1.1, the Rust implementation is maintained in `hacp-spec/hacp-rs` as part of the versioned release composition. Its licensing is governed by the applicable component-specific terms and existing grants in `hacp-spec`, not automatically by `hacp-sidecar/LICENSE.md`.
 
 See [`LICENSE.md`](LICENSE.md) for repository licensing terms.
 
