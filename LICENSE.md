@@ -11,8 +11,11 @@ For commercial licensing inquiries, contact: `digital.humanism.collective@proton
 | [`hacp-spec`](https://github.com/digital-humanism/hacp-spec) | Open standard (specification, schemas, conformance suite) | CC BY 4.0 |
 | [`humanist-core`](https://github.com/digital-humanism/humanist-core) | Reference SDK (Python) | AGPLv3 + commercial dual |
 | [`hacp-sidecar`](https://github.com/digital-humanism/hacp-sidecar) | Enforcement sidecar (Go) | AGPLv3 + commercial dual |
+| [`hacp-spec/hacp-rs`](https://github.com/digital-humanism/hacp-spec/tree/admit/hacp-1.1.1-pre-release/hacp-rs) | Rust reference/enforcement implementation | See component-specific licensing in `hacp-spec` |
 
 This deliberate separation ensures the protocol remains a vendor-neutral open standard, while reference tooling, enforcement implementations, and enterprise integrations maintain a sustainable commercial model.
+
+For HACP 1.1.1, Rust implementation components are maintained in `hacp-spec/hacp-rs` and participate in the versioned release composition. Their licensing is governed by the applicable component-specific terms and existing grants in `hacp-spec`, not automatically by this repository's `LICENSE.md`.
 
 ### AGPLv3 notice for network deployment
 
