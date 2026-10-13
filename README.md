@@ -688,6 +688,32 @@ Expected:
 Result: 5 passed, 0 failed
 ```
 
+> **NOTE — startup health-check window**
+>
+> Before executing the five `AB-E2E-*` checks, the anti-bypass verification
+> waits for the agent to reach the sidecar `/healthz` endpoint within a
+> bounded startup window.
+>
+> `/healthz` is a process-liveness signal; this startup check is not an
+> authorization-readiness assertion.
+>
+> On a cold Docker start, initial image pulls, container initialization, or
+> installation of the agent-side test tooling can exceed the startup
+> health-check window. In that case the verification stops before the five
+> anti-bypass assertions are evaluated.
+>
+> Exceeding the startup health-check window is therefore not the same as an
+> `AB-E2E-*` assertion failure. Once the reference deployment is running,
+> rerun the verification command. A successful verification must still end
+> with:
+>
+> ```text
+> Result: 5 passed, 0 failed
+> ```
+>
+> Do not treat a startup health-check timeout as a PASS, and do not bypass
+> or disable the bounded startup check.
+
 The deployment test verifies that the untrusted agent can reach the sidecar, cannot directly reach the protected upstream, the upstream has no host port bindings, the sidecar retains protected-upstream connectivity, and Docker network membership preserves the D3 anti-bypass boundary.
 
 See [`docs/security/anti-bypass-deployment.md`](docs/security/anti-bypass-deployment.md).
