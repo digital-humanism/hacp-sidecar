@@ -134,5 +134,5 @@ historical rewrite
 humanist-core mutation
 ```
 
-The current pre-release composition remains subject to the complete E21
-candidate verification and activation boundary.
+The current pre-release composition remains subject to the applicable
+controlled verification and activation gates.
