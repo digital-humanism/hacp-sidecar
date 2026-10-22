@@ -138,3 +138,4 @@ fn rs07_b9_budget_not_exhausted_allows() {
         "valid golden action under the autonomy budget limit must allow"
     );
 }
+
