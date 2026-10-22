@@ -50,3 +50,6 @@ Thumbs.db
 # Restricted engineering and maintainer material.
 # Kept locally and shared selectively with reviewers/auditors.
 .restricted/
+
+# Local GitCheck reproduction outputs
+test/gitcheck-reproduction/results/

@@ -1,0 +1,93 @@
+package budget
+
+// Verification-only tests for the B9 gap (budget/replay semantics) at the
+// DecisionToken budget-ledger level: max_uses exhaustion and token
+// reuse/replay beyond the allowed use count.
+//
+// ROLE: VERIFICATION TESTING ONLY. No production code changes.
+// Boundary: token budget semantics only. Control-plane journal event
+// replay is a different semantic class and is NOT covered here.
+// Repository-owned verification path (see Readme_map_file.md):
+//   test/matrix/t_go/S12_budget_ledger_test.go.overlay
+
+import (
+	"testing"
+)
+
+func TestConsumeTokenAllowsExactlyMaxUsesThenRejects(t *testing.T) {
+	ledger := NewLedger()
+
+	const tokenID = "budget-token-exhaustion"
+	const maxUses = 3
+
+	for i := 1; i <= maxUses; i++ {
+		if !ledger.ConsumeToken(tokenID, maxUses) {
+			t.Fatalf("use %d of %d rejected prematurely", i, maxUses)
+		}
+	}
+
+	if ledger.ConsumeToken(tokenID, maxUses) {
+		t.Fatalf("use %d accepted beyond maxUses=%d", maxUses+1, maxUses)
+	}
+
+	if got := ledger.TokenCount(tokenID); got != maxUses {
+		t.Fatalf("TokenCount = %d, want %d", got, maxUses)
+	}
+}
+
+func TestConsumeTokenRejectsReuseBeyondMaxUses(t *testing.T) {
+	ledger := NewLedger()
+
+	const tokenID = "budget-token-replay"
+	const maxUses = 1
+
+	if !ledger.ConsumeToken(tokenID, maxUses) {
+		t.Fatal("first use of a fresh token rejected")
+	}
+
+	// Replay of an already-consumed token must be denied.
+	if ledger.ConsumeToken(tokenID, maxUses) {
+		t.Fatal("token reuse beyond maxUses=1 accepted (replay not denied)")
+	}
+	if ledger.ConsumeToken(tokenID, maxUses) {
+		t.Fatal("repeated replay beyond maxUses=1 accepted")
+	}
+
+	if got := ledger.TokenCount(tokenID); got != 1 {
+		t.Fatalf("TokenCount = %d, want 1", got)
+	}
+}
+
+func TestConsumeTokenRejectsInvalidInputs(t *testing.T) {
+	ledger := NewLedger()
+
+	if ledger.ConsumeToken("", 1) {
+		t.Fatal("empty tokenID accepted")
+	}
+	if ledger.ConsumeToken("budget-token-invalid", 0) {
+		t.Fatal("maxUses=0 accepted")
+	}
+	if ledger.ConsumeToken("budget-token-invalid", -1) {
+		t.Fatal("negative maxUses accepted")
+	}
+}
+
+func TestConsumeTokenKeepsTokenBudgetsIndependent(t *testing.T) {
+	ledger := NewLedger()
+
+	const maxUses = 1
+
+	if !ledger.ConsumeToken("budget-token-a", maxUses) {
+		t.Fatal("first use of token-a rejected")
+	}
+	if !ledger.ConsumeToken("budget-token-b", maxUses) {
+		t.Fatal("fresh token-b rejected after unrelated token-a consumption")
+	}
+
+	if ledger.ConsumeToken("budget-token-a", maxUses) {
+		t.Fatal("replay of token-a accepted")
+	}
+	if got := ledger.TokenCount("budget-token-b"); got != 1 {
+		t.Fatalf("TokenCount(token-b) = %d, want 1", got)
+	}
+}

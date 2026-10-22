@@ -1,0 +1,4 @@
+services:
+  agent:
+    image: hacp-s07-test-agent:alpine-3.22-curl-v1
+    command: ["tail", "-f", "/dev/null"]

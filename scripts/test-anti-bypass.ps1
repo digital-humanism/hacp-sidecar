@@ -2,6 +2,12 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $composeFile = Join-Path $repoRoot "deployments\docker-compose.yml"
+$testComposeFile = Join-Path $repoRoot "test\deployments\docker-compose.yml"
+$composeArgs = @(
+    'compose',
+    '-f', $composeFile,
+    '-f', $testComposeFile
+)
 
 Set-Location $repoRoot
 
@@ -25,7 +31,7 @@ function Write-TestFail {
 function Get-ServiceContainerId {
     param([string]$Service)
 
-    $id = (& docker compose -f $composeFile ps -q $Service).Trim()
+    $id = (& docker @composeArgs ps -q $Service).Trim()
     if (-not $id) {
         throw "No running container found for service '$Service'."
     }
@@ -63,7 +69,7 @@ Write-Host ""
 try {
     Write-Host "[SETUP] Building and starting reference deployment..."
 
-    & docker compose -f $composeFile up -d --build
+    & docker @composeArgs up -d --build
     if ($LASTEXITCODE -ne 0) {
         throw "Docker Compose startup failed."
     }
@@ -73,7 +79,7 @@ try {
     $ready = $false
 
     for ($attempt = 1; $attempt -le 30; $attempt++) {
-        & docker compose -f $composeFile exec -T agent `
+        & docker @composeArgs exec -T agent `
             sh -c 'curl -fsS http://sidecar:8080/healthz >/dev/null 2>&1'
 
         if ($LASTEXITCODE -eq 0) {
@@ -91,7 +97,7 @@ try {
     Write-Host ""
 
     # ---------------------------------------------------------------- AB-E2E-01
-    & docker compose -f $composeFile exec -T agent `
+    & docker @composeArgs exec -T agent `
         sh -c 'curl -fsS http://sidecar:8080/healthz >/dev/null'
 
     if ($LASTEXITCODE -eq 0) {
@@ -106,7 +112,7 @@ try {
     }
 
     # ---------------------------------------------------------------- AB-E2E-02
-    & docker compose -f $composeFile exec -T agent `
+    & docker @composeArgs exec -T agent `
         sh -c 'curl --connect-timeout 3 -sS http://upstream:8000/ >/dev/null 2>&1'
 
     if ($LASTEXITCODE -ne 0) {
@@ -145,7 +151,7 @@ try {
     }
 
     # ---------------------------------------------------------------- AB-E2E-04
-    $upstreamResponse = & docker compose -f $composeFile exec -T sidecar `
+    $upstreamResponse = & docker @composeArgs exec -T sidecar `
         wget -qO- http://upstream:8000/
 
     if (

@@ -136,3 +136,65 @@ humanist-core mutation
 
 The current pre-release composition remains subject to the applicable
 controlled verification and activation gates.
+
+## HACP 1.1.1 Controlled Verification Surface
+
+The HACP 1.1.1 SIDECAR-A2 controlled reproduction introduced a small
+repository-local verification surface.
+
+These files remain at their execution locations:
+
+```text
+../../../../benchmarks/rust-http-reproduction/main.go
+../../../../docs/verification/rust-http-local-reproduction.md
+../../../../internal/proxy/r4_provenance_verification_test.go
+```
+
+Their classification is:
+
+```text
+ROLE=CONTROLLED_VERIFICATION_SURFACE
+PRODUCTION_RUNTIME_INPUT=NO
+NORMATIVE_AUTHORITY=NO
+HISTORICAL_REWRITE=NO
+```
+
+Ownership by test stage:
+
+```text
+benchmarks/rust-http-reproduction/main.go
+    R8.2 Rust HTTP verification runner
+
+docs/verification/rust-http-local-reproduction.md
+    R8.2 Rust HTTP reproduction procedure
+
+internal/proxy/r4_provenance_verification_test.go
+    R4.3 H-01 / H-02 provenance verification witness
+```
+
+The R4.3 H-03 graceful-shutdown reproduction is repository-owned through:
+
+```text
+tools/reproduction/graceful-shutdown/main.go
+docs/history-artifacts/hacp-1.1.1/test/evidence/r4-3/
+```
+
+H-03 remains a real-process verification rather than an in-process repository
+test-package witness. External directories may be used for fresh run outputs,
+but no private external evidence root is required to understand or reproduce
+the recorded H-03 verification.
+
+The detailed provenance, identities, execution topology, result interpretation,
+evidence hashes and reproduction instructions are recorded in:
+
+```text
+test/README_R4_R8_REPRODUCTION.md
+```
+
+The files are intentionally not moved into the history directory.
+
+Their original locations are part of the reproducible verification context,
+while this history surface provides ownership and navigation metadata.
+
+These verification artifacts do not change sidecar production semantics,
+protocol behavior, composition authority or release authorization.

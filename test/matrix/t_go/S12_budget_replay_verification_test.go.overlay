@@ -1,0 +1,306 @@
+package proxy
+
+// Verification-only tests for the B9 gap (budget/replay semantics) on the
+// full HTTP enforcement path: DecisionToken max_uses exhaustion, token
+// reuse/replay beyond the allowed use, and the default maxUses=1 when
+// constraints.max_uses is absent. Expected fail-closed outcome:
+// HTTP 403 + X-HACP-Decision: DENY + X-HACP-Reason: BUDGET_EXHAUSTED,
+// without upstream forwarding for the denied request.
+//
+// ROLE: VERIFICATION TESTING ONLY. No production code changes.
+// Boundary: token budget semantics only. Control-plane journal event
+// replay is a different semantic class and is NOT covered here.
+// Repository-owned verification path (see Readme_map_file.md):
+//   test/matrix/t_go/S12_budget_replay_verification_test.go.overlay
+
+import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"hacp-sidecar/internal/budget"
+	"hacp-sidecar/internal/evaluate"
+	"hacp-sidecar/internal/provenance"
+	"hacp-sidecar/internal/wire"
+)
+
+type budgetFixture struct {
+	handler     *Handler
+	upstreamURI chan string
+	env         *wire.IntentEnvelope
+	envJSON     []byte
+	privateKey  ed25519.PrivateKey
+	keyID       string
+}
+
+func newBudgetFixture(t *testing.T) *budgetFixture {
+	t.Helper()
+
+	const keyID = "budget-replay-key"
+
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ed25519.GenerateKey() error = %v", err)
+	}
+
+	keyResolver := wire.NewStaticKeyResolver()
+	if err := keyResolver.AddKey(keyID, publicKey); err != nil {
+		t.Fatalf("AddKey() error = %v", err)
+	}
+
+	pipeline := evaluate.NewPipeline(
+		keyResolver,
+		evaluate.NewInMemoryRevocationStore(),
+		budget.NewLedger(),
+		evaluate.NewDefaultScopeGuard(),
+		provenance.NewNoopWriter(),
+	)
+
+	upstreamURI := make(chan string, 8)
+
+	upstream := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			upstreamURI <- r.URL.RequestURI()
+			w.WriteHeader(http.StatusOK)
+		}),
+	)
+	t.Cleanup(upstream.Close)
+
+	provenanceLog := provenance.NewRingBuffer(
+		16,
+		filepath.Join(t.TempDir(), "provenance.jsonl"),
+	)
+	t.Cleanup(provenanceLog.Stop)
+
+	handler := NewHandler(
+		pipeline,
+		provenanceLog,
+		upstream.URL,
+	)
+
+	env, envJSON := signedBindingEnvelope(
+		t,
+		privateKey,
+		keyID,
+	)
+
+	return &budgetFixture{
+		handler:     handler,
+		upstreamURI: upstreamURI,
+		env:         env,
+		envJSON:     envJSON,
+		privateKey:  privateKey,
+		keyID:       keyID,
+	}
+}
+
+// newSignedBudgetRequest builds a fresh HTTP request bound to a fresh token
+// object with the given tokenID. maxUses == nil omits constraints.max_uses
+// (pipeline default maxUses=1 must then apply).
+func (f *budgetFixture) newSignedBudgetRequest(
+	t *testing.T,
+	tokenID string,
+	maxUses *int,
+) *http.Request {
+	t.Helper()
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"http://sidecar.test/transfer?account=A",
+		nil,
+	)
+
+	payloadHash := wire.SHA256Hex(nil)
+
+	proposedAction := SynthesizeProposedAction(
+		req,
+		f.env,
+		payloadHash,
+	)
+
+	actionHash, err := proposedAction.Hash()
+	if err != nil {
+		t.Fatalf("ProposedAction.Hash() error = %v", err)
+	}
+
+	now := time.Now().Unix()
+
+	constraints := map[string]any{
+		"method":       http.MethodPost,
+		"path":         "/transfer?account=A",
+		"payload_hash": payloadHash,
+	}
+	if maxUses != nil {
+		constraints["max_uses"] = *maxUses
+	}
+
+	unsigned := map[string]any{
+		"hacp_version":  "0.9",
+		"token_id":      tokenID,
+		"envelope_id":   f.env.EnvelopeID,
+		"action_hash":   actionHash,
+		"policy_digest": "budget-replay-policy",
+		"principal":     "ph1c-human",
+		"signer_key_id": f.keyID,
+		"issued_at":     now - 60,
+		"expires_at":    now + 600,
+		"decision":      "ALLOW",
+		"constraints":   constraints,
+	}
+
+	tokenJSON := signBindingObject(
+		t,
+		f.privateKey,
+		unsigned,
+	)
+
+	req.Header.Set(
+		wire.HeaderIntentEnvelope,
+		wire.Base64URLEncode(f.envJSON),
+	)
+	req.Header.Set(
+		wire.HeaderDecisionToken,
+		wire.Base64URLEncode(tokenJSON),
+	)
+
+	return req
+}
+
+func (f *budgetFixture) expectAllow(
+	t *testing.T,
+	req *http.Request,
+	label string,
+) {
+	t.Helper()
+
+	rec := httptest.NewRecorder()
+	f.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf(
+			"%s: status = %d decision=%q reason=%q body=%q, want 200",
+			label,
+			rec.Code,
+			rec.Header().Get("X-HACP-Decision"),
+			rec.Header().Get("X-HACP-Reason"),
+			rec.Body.String(),
+		)
+	}
+
+	if got := rec.Header().Get("X-HACP-Decision"); got != "ALLOW" {
+		t.Fatalf("%s: X-HACP-Decision = %q, want ALLOW", label, got)
+	}
+}
+
+func (f *budgetFixture) expectBudgetDeny(
+	t *testing.T,
+	req *http.Request,
+	label string,
+) {
+	t.Helper()
+
+	rec := httptest.NewRecorder()
+	f.handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf(
+			"%s: status = %d decision=%q reason=%q body=%q, want 403",
+			label,
+			rec.Code,
+			rec.Header().Get("X-HACP-Decision"),
+			rec.Header().Get("X-HACP-Reason"),
+			rec.Body.String(),
+		)
+	}
+
+	if got := rec.Header().Get("X-HACP-Decision"); got != "DENY" {
+		t.Fatalf("%s: X-HACP-Decision = %q, want DENY", label, got)
+	}
+
+	if got := rec.Header().Get("X-HACP-Reason"); got != "BUDGET_EXHAUSTED" {
+		t.Fatalf("%s: X-HACP-Reason = %q, want BUDGET_EXHAUSTED", label, got)
+	}
+}
+
+func TestBudgetDefaultMaxUsesOneDeniesSecondUse(t *testing.T) {
+	f := newBudgetFixture(t)
+
+	const tokenID = "budget-default-token"
+
+	// First use: constraints.max_uses absent -> default maxUses = 1.
+	f.expectAllow(
+		t,
+		f.newSignedBudgetRequest(t, tokenID, nil),
+		"first use",
+	)
+
+	// Second use of the same token: replay beyond the default single use.
+	f.expectBudgetDeny(
+		t,
+		f.newSignedBudgetRequest(t, tokenID, nil),
+		"second use",
+	)
+
+	if n := len(f.upstreamURI); n != 1 {
+		t.Fatalf("upstream requests = %d, want 1 (denied request must not be forwarded)", n)
+	}
+}
+
+func TestBudgetMaxUsesExhaustionDeniesWithBudgetExhausted(t *testing.T) {
+	f := newBudgetFixture(t)
+
+	const tokenID = "budget-exhaustion-token"
+	maxUses := 2
+
+	f.expectAllow(
+		t,
+		f.newSignedBudgetRequest(t, tokenID, &maxUses),
+		"use 1 of 2",
+	)
+	f.expectAllow(
+		t,
+		f.newSignedBudgetRequest(t, tokenID, &maxUses),
+		"use 2 of 2",
+	)
+
+	f.expectBudgetDeny(
+		t,
+		f.newSignedBudgetRequest(t, tokenID, &maxUses),
+		"use 3 of 2",
+	)
+
+	if n := len(f.upstreamURI); n != 2 {
+		t.Fatalf("upstream requests = %d, want 2 (denied request must not be forwarded)", n)
+	}
+}
+
+func TestBudgetReplayRemainsDeniedAfterExhaustion(t *testing.T) {
+	f := newBudgetFixture(t)
+
+	const tokenID = "budget-replay-token"
+	maxUses := 1
+
+	f.expectAllow(
+		t,
+		f.newSignedBudgetRequest(t, tokenID, &maxUses),
+		"first use",
+	)
+	f.expectBudgetDeny(
+		t,
+		f.newSignedBudgetRequest(t, tokenID, &maxUses),
+		"replay",
+	)
+	f.expectBudgetDeny(
+		t,
+		f.newSignedBudgetRequest(t, tokenID, &maxUses),
+		"repeated replay",
+	)
+
+	if n := len(f.upstreamURI); n != 1 {
+		t.Fatalf("upstream requests = %d, want 1 (denied requests must not be forwarded)", n)
+	}
+}

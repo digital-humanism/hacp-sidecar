@@ -1,0 +1,228 @@
+package wire
+
+// Verification-only tests for the B6 gap: direct JCS canonicalization
+// assertions and signing failure classes.
+//
+// ROLE: VERIFICATION TESTING ONLY. No production code changes.
+// Repository-owned verification path (see Readme_map_file.md):
+//   test/matrix/t_go/S11_signature_canonicalization_test.go.overlay
+
+import (
+	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/json"
+	"testing"
+)
+
+func TestCanonicalizeJSONSortsTopLevelKeys(t *testing.T) {
+	got, err := CanonicalizeJSON([]byte(`{"b":2,"a":1}`))
+	if err != nil {
+		t.Fatalf("CanonicalizeJSON() error = %v", err)
+	}
+	want := []byte(`{"a":1,"b":2}`)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("canonical = %s, want %s", got, want)
+	}
+}
+
+func TestCanonicalizeJSONSortsNestedKeys(t *testing.T) {
+	got, err := CanonicalizeJSON([]byte(`{"b":{"z":1,"a":2}}`))
+	if err != nil {
+		t.Fatalf("CanonicalizeJSON() error = %v", err)
+	}
+	want := []byte(`{"b":{"a":2,"z":1}}`)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("canonical = %s, want %s", got, want)
+	}
+}
+
+func TestCanonicalizeJSONStripsWhitespace(t *testing.T) {
+	got, err := CanonicalizeJSON([]byte(`{ "a" : 1 , "b" : [ 1 , 2 ] }`))
+	if err != nil {
+		t.Fatalf("CanonicalizeJSON() error = %v", err)
+	}
+	want := []byte(`{"a":1,"b":[1,2]}`)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("canonical = %s, want %s", got, want)
+	}
+}
+
+func TestCanonicalizeJSONPreservesArrayOrder(t *testing.T) {
+	got, err := CanonicalizeJSON([]byte(`{"a":[3,1,2]}`))
+	if err != nil {
+		t.Fatalf("CanonicalizeJSON() error = %v", err)
+	}
+	want := []byte(`{"a":[3,1,2]}`)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("canonical = %s, want %s", got, want)
+	}
+}
+
+func TestCanonicalizeJSONNumberLargeInteger(t *testing.T) {
+	var buf bytes.Buffer
+
+	canonicalizeJSONNumber(
+		&buf,
+		json.Number("123456789012345678901234567890"),
+	)
+
+	want := "1.2345678901234568e+29"
+	if got := buf.String(); got != want {
+		t.Fatalf("canonical number = %s, want %s", got, want)
+	}
+}
+
+func TestCanonicalizeJSONKeepsSolidusUnescaped(t *testing.T) {
+	got, err := CanonicalizeJSON([]byte(`{"k":"a/b"}`))
+	if err != nil {
+		t.Fatalf("CanonicalizeJSON() error = %v", err)
+	}
+	want := []byte(`{"k":"a/b"}`)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("canonical = %s, want %s", got, want)
+	}
+}
+
+func TestCanonicalizeJSONKeepsEscapedLineFeed(t *testing.T) {
+	// Input JSON string value contains LF, serialized with the two-char
+	// escape \n. Canonical output must keep the escaped form (RFC 8785
+	// 3.2.1), never a raw control byte.
+	in := []byte("{\"k\":\"a\\nb\"}")
+	got, err := CanonicalizeJSON(in)
+	if err != nil {
+		t.Fatalf("CanonicalizeJSON() error = %v", err)
+	}
+	want := []byte("{\"k\":\"a\\nb\"}")
+	if !bytes.Equal(got, want) {
+		t.Fatalf("canonical = %q, want %q", got, want)
+	}
+	for _, b := range got {
+		if b < 0x20 {
+			t.Fatalf("canonical output contains raw control byte 0x%02x: %q", b, got)
+		}
+	}
+}
+
+func TestCanonicalizeJSONRejectsInvalidInput(t *testing.T) {
+	if _, err := CanonicalizeJSON([]byte(`{`)); err == nil {
+		t.Fatal("CanonicalizeJSON accepted invalid JSON")
+	}
+}
+
+func TestVerifyCanonicalizationDetectsEquivalence(t *testing.T) {
+	ok, err := VerifyCanonicalization([]byte(`{"a":1,"b":2}`), []byte(`{"b":2,"a":1}`))
+	if err != nil {
+		t.Fatalf("VerifyCanonicalization() error = %v", err)
+	}
+	if !ok {
+		t.Fatal("reordered equivalent objects not recognized as canonically equivalent")
+	}
+
+	ok, err = VerifyCanonicalization([]byte(`{"a":1,"b":2}`), []byte(`{"a":1,"b":3}`))
+	if err != nil {
+		t.Fatalf("VerifyCanonicalization() error = %v", err)
+	}
+	if ok {
+		t.Fatal("different objects recognized as canonically equivalent")
+	}
+}
+
+func TestRemoveSignatureFieldStripsSignature(t *testing.T) {
+	got, err := RemoveSignatureField([]byte(`{"signature":"xyz","z":1,"a":2}`))
+	if err != nil {
+		t.Fatalf("RemoveSignatureField() error = %v", err)
+	}
+	want := []byte(`{"a":2,"z":1}`)
+	if !bytes.Equal(got, want) {
+		t.Fatalf("result = %s, want %s", got, want)
+	}
+}
+
+func TestVerifyEd25519AcceptsValidSignature(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ed25519.GenerateKey() error = %v", err)
+	}
+	canonical, err := CanonicalizeJSON([]byte(`{"a":1}`))
+	if err != nil {
+		t.Fatalf("CanonicalizeJSON() error = %v", err)
+	}
+	sig := ed25519.Sign(privateKey, canonical)
+	if !VerifyEd25519(publicKey, canonical, sig) {
+		t.Fatal("valid signature rejected")
+	}
+}
+
+func TestVerifyEd25519RejectsTamperedMessage(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ed25519.GenerateKey() error = %v", err)
+	}
+	canonical, err := CanonicalizeJSON([]byte(`{"a":1}`))
+	if err != nil {
+		t.Fatalf("CanonicalizeJSON() error = %v", err)
+	}
+	sig := ed25519.Sign(privateKey, canonical)
+
+	tampered, err := CanonicalizeJSON([]byte(`{"a":2}`))
+	if err != nil {
+		t.Fatalf("CanonicalizeJSON() error = %v", err)
+	}
+	if VerifyEd25519(publicKey, tampered, sig) {
+		t.Fatal("tampered message verified")
+	}
+}
+
+func TestVerifyEd25519RejectsCorruptedSignature(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ed25519.GenerateKey() error = %v", err)
+	}
+	message := []byte(`{"a":1}`)
+	sig := ed25519.Sign(privateKey, message)
+	corrupted := make([]byte, len(sig))
+	copy(corrupted, sig)
+	corrupted[0] ^= 0xFF
+	if VerifyEd25519(publicKey, message, corrupted) {
+		t.Fatal("corrupted signature verified")
+	}
+}
+
+func TestVerifyEd25519RejectsWrongKey(t *testing.T) {
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ed25519.GenerateKey() error = %v", err)
+	}
+	otherPublic, _, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ed25519.GenerateKey() error = %v", err)
+	}
+	message := []byte(`{"a":1}`)
+	sig := ed25519.Sign(privateKey, message)
+	if VerifyEd25519(otherPublic, message, sig) {
+		t.Fatal("signature verified under the wrong public key")
+	}
+}
+
+func TestSignatureBindsCanonicalForm(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ed25519.GenerateKey() error = %v", err)
+	}
+	canonical, err := CanonicalizeJSON([]byte(`{"a":1,"b":2}`))
+	if err != nil {
+		t.Fatalf("CanonicalizeJSON() error = %v", err)
+	}
+	sig := ed25519.Sign(privateKey, canonical)
+	if !VerifyEd25519(publicKey, canonical, sig) {
+		t.Fatal("valid signature over canonical bytes rejected")
+	}
+
+	// Non-canonical serialization of the same logical object must NOT
+	// verify: the signature binds the canonical form.
+	raw := []byte(`{"a": 1, "b": 2}`)
+	if VerifyEd25519(publicKey, raw, sig) {
+		t.Fatal("signature verified over non-canonical bytes; signing must bind the canonical form")
+	}
+}

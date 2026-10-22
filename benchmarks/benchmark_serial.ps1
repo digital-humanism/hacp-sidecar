@@ -2,6 +2,7 @@
 # Slower but avoids budget exhaustion and gives accurate overhead measurement.
 
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 $sidecar = "http://127.0.0.1:8080"
 $upstream = "http://127.0.0.1:8000"
 $tokensFile = "benchmarks/tokens.jsonl"
