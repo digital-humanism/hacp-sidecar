@@ -35,7 +35,7 @@ go test ./... -count=1
 | Server heartbeat delivery | `TestWatchRevocationsDeliversHeartbeat` |
 | Heartbeat refreshes freshness | `TestSubscriberHeartbeatRefreshesControlState` |
 | Invalid heartbeat → unsafe | `TestSubscriberInvalidHeartbeatMarksControlStateUnsafe` |
-| Two-sidecar convergence | `TestTwoSidecarsConvergeOnDistributedRevocation` |
+| In-process replica convergence | `TestTwoSidecarsConvergeOnDistributedRevocation` |
 | Stale state → fail closed | `TestPipelineFailsClosedWhenControlStateStale` |
 | Standalone evaluator compatibility | `TestPipelineWithoutControlStateGuardPreservesStandaloneBehavior` |
 | Replay + live delivery | `TestControlPlaneReplayAndLiveDelivery` |
@@ -218,11 +218,13 @@ This prevents heartbeats from masking missing events.
 
 ---
 
-# 4. Multi-Sidecar Convergence
+# 4. Independent In-Process Replica Convergence
 
 ## `TestTwoSidecarsConvergeOnDistributedRevocation`
 
-This is the distributed replica convergence proof.
+This is the distributed in-process replica convergence proof.
+
+It does not instantiate or claim two independent operating-system sidecar processes.
 
 Topology:
 
@@ -232,7 +234,7 @@ Topology:
           revoke token @ N
              ┌────┴────┐
              ▼         ▼
-        Sidecar A   Sidecar B
+        Pipeline A   Pipeline B
 ```
 
 The test uses:
@@ -801,7 +803,7 @@ state machine
 → protocol stream
 → recovery
 → evaluator
-→ multiple sidecars
+→ multiple independent in-process replica pipelines
 ```
 
 ---

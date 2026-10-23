@@ -6,6 +6,8 @@
 **Status:** CLOSED — PASS
 **Publication:** NOT AUTHORIZED
 
+**Document chronology note:** This report is an append-only verification record. Earlier sections preserve intermediate execution state as observed at the time and are not retroactively rewritten. Statements such as `verification is not yet complete`, remaining-work lists, and pre-execution HOLDs in those intermediate sections are historical observations. The authoritative final disposition of this report is the later completed verification matrix and final decision, which record `GO_VERIFICATION=CLOSED / PASS`, fresh Python ↔ Go external E2E `5/5 PASS`, and the resolved HACP 1.1.1 implementation binding. Historical intermediate wording must not be interpreted as the current verification status.
+
 ---
 
 ## 1. Purpose

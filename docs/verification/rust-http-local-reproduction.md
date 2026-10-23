@@ -1,6 +1,6 @@
 # Rust HTTP Local-Response Reproduction — R8.2
 
-**Status:** REPRODUCED / PENDING REPOSITORY ADMISSION. **Type:** S-owned verification tooling; not a protocol specification or product-runtime change.
+**Status:** REPRODUCED / REPOSITORY-OWNED. **Type:** S-owned verification tooling; not a protocol specification or product-runtime change.
 
 ## Source and behavior boundaries
 
@@ -15,7 +15,23 @@
 
 ## Repository-ownership disposition
 
-The R8.2 Rust HTTP runtime reproduction has been executed successfully from the S/P public-source boundary using this procedure and the S-owned verification client. The remaining repository-ownership action is to admit this procedure and client into tracked `hacp-sidecar` history through the controlled signed-commit workflow. This document does not authorize an automatic push, merge, tag, release, protocol change, or product-runtime change.
+The R8.2 Rust HTTP runtime reproduction has been executed successfully from the S/P public-source boundary using this procedure and the S-owned verification client.
+
+The procedure and verification client were subsequently admitted into tracked `hacp-sidecar` history by signed commit:
+
+```text
+3018b6bac9753bb7bc4c090d54de71f8bd5cb2f9
+test: admit Rust HTTP reproduction procedure
+```
+
+Admitted paths:
+
+```text
+benchmarks/rust-http-reproduction/main.go
+docs/verification/rust-http-local-reproduction.md
+```
+
+Repository ownership is therefore satisfied for this reproduction surface. This document does not authorize an automatic push, merge, tag, release, protocol change, or product-runtime change.
 
 ## Accepted procedure requirements
 
