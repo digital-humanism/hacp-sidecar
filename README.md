@@ -747,8 +747,13 @@ go build -o hacp-conformance-runner.exe ./cmd/hacp-conformance-runner
 Run the canonical harness from the adjacent specification repository:
 
 ```powershell
-$SpecRepo = 'C:\Personal\GitHub\Dev\hacp-spec'
-$SidecarRepo = 'C:\Personal\GitHub\Dev\hacp-sidecar'
+$SidecarRepo = (git rev-parse --show-toplevel).Trim()
+if ($LASTEXITCODE -ne 0 -or -not $SidecarRepo) {
+    throw 'Unable to resolve hacp-sidecar repository root'
+}
+
+$WorkspaceRoot = Split-Path -Parent $SidecarRepo
+$SpecRepo = Join-Path $WorkspaceRoot 'hacp-spec'
 
 python "$SpecRepo\harness\harness_runner.py" `
     --runner "$SidecarRepo\hacp-conformance-runner.exe" `

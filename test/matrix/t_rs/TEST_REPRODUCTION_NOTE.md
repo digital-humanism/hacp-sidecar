@@ -117,9 +117,9 @@ A fresh isolated reproduction of the Rust HTTP functional surface `RS04` was com
 Fresh run identity:
 
 ```text
-RUN_ROOT=C:\Temp\hacp-rust-http-repro-20261023-001155\run
-EVIDENCE_ROOT=C:\Temp\hacp-rust-http-repro-20261023-001155\evidence
-RUN_DIR=C:\Temp\hacp-rust-http-repro-20261023-001155\evidence\20261022-211155_2493580c
+RUN_ROOT=%TEMP%\hacp-rust-http-repro-20261023-001155\run
+EVIDENCE_ROOT=%TEMP%\hacp-rust-http-repro-20261023-001155\evidence
+RUN_DIR=%TEMP%\hacp-rust-http-repro-20261023-001155\evidence\20261022-211155_2493580c
 ```
 
 Preflight result:

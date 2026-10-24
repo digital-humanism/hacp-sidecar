@@ -10,10 +10,10 @@ This document records **observed local runs**, not a claim that every historical
 
 ## Repository layout and boundaries
 
-The adapted scripts resolve `GC` to the local `Dev` parent directory, with sibling checkouts:
+The adapted scripts resolve `GC` to the workspace parent directory, with sibling checkouts:
 
 ```text
-C:\Personal\GitHub\Dev\
+<workspace>\
   hacp-spec\
   hacp-sidecar\
     test\gitcheck-reproduction\
@@ -65,9 +65,9 @@ The working shell scripts and `results/` are housed in `hacp-sidecar`, but the r
 
 ## Execution environment and adaptations
 
-- **OS / shell:** native Windows, PowerShell 7 as the launcher, and Git Bash (`C:\Program Files\Git\bin\bash.exe`) for shell scripts. `cygpath -w` bridges Git Bash paths to Windows-native executables.
+- **OS / shell:** native Windows, PowerShell 7 as the launcher, and Git Bash from the active Git for Windows environment for shell scripts. `cygpath -w` bridges Git Bash paths to Windows-native executables.
 - **Go:** native Go 1.26.5; a local `hacp-go.exe` was built into `results/hacp-go/build/` from existing `hacp-spec/hacp-go` source. No production source change.
-- **TypeScript:** Node.js 24.19.0; existing `hacp-ts/dist/` and `node_modules/` reused. `41` uses native Node rather than Docker; `42` runs the existing Node tests and CLI. Windows Python invokes an explicitly selected Git Bash executable for the bridge.
+- **TypeScript:** Node.js 24.19.0; existing `hacp-ts/dist/` and `node_modules/` reused. `41` uses native Node rather than Docker; `42` runs the existing Node tests and CLI. Windows Python invokes the Git Bash executable resolved from the active Git for Windows environment for the bridge.
 - **Python:** native Python 3.13.14; `60` uses the existing `hacp-spec` harness and installed dependencies rather than a Docker image or `pip install`. `PYTHONIOENCODING=utf-8` avoids Windows console encoding errors. The `e5c6_binding_fixture.json` auxiliary file is absent and excluded from Core-38; it is not needed for the two executed Python conformance families.
 - **Rust:** existing `hacp-rs-runner.exe` reused; `50-build-rust.sh` was not run. Windows path handling and native Python were used for the witness/corpus orchestration.
 - **Docker historical steps:** `40-build-ts.sh` and `50-build-rust.sh` remain as historical build helpers and **were not executed**. Do not infer fresh-container reproducibility from the successful native-language conformance runs.

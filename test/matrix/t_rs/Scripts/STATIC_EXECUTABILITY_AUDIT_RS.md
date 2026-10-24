@@ -166,7 +166,7 @@ Only syntax/API usage was checked (not installation). No PS7-only constructs (`?
 
 ## P. Hidden dependency / reference scan (§34/§35)
 
-All file/directory/executable/script/fixture/log/manifest references either exist now **or** are created by a preceding phase (`CREATED_BY_PREVIOUS_PHASE`; see L). No `IMPLICITLY_ASSUMED / UNKNOWN / HISTORICAL_ONLY_BUT_REQUIRED` references. No prohibited or laboratory dependencies (`Mount`, `G:\`/`M:\`, VPS-only, obsolete `HACP_RUST` lab, historical logs). The only `HACP_RUST*` reference is the declared `EvidenceRoot` (`C:\Temp\hacp-rust-verification\evidence`), which is valid.
+All file/directory/executable/script/fixture/log/manifest references either exist now **or** are created by a preceding phase (`CREATED_BY_PREVIOUS_PHASE`; see L). No `IMPLICITLY_ASSUMED / UNKNOWN / HISTORICAL_ONLY_BUT_REQUIRED` references. No prohibited or laboratory dependencies (`Mount`, `G:\`/`M:\`, VPS-only, obsolete `HACP_RUST` lab, historical logs). The only `HACP_RUST*` reference is the declared `EvidenceRoot` (`%TEMP%\hacp-rust-verification\evidence`), which is valid.
 **STATIC_HIDDEN_REFERENCE_AUDIT=PASS.**
 
 ---
@@ -399,7 +399,7 @@ The reconciliation layer does not synthesize those formulations.
 Authoritative source artifact:
 
 ```text
-C:\Personal\GitHub\Dev\hacp-sidecar\test\matrix\t_rs\RS07_budget_replay_verification.rs
+<workspace>\hacp-sidecar\test\matrix\t_rs\RS07_budget_replay_verification.rs
 ```
 
 The artifact is not transferred into `hacp-spec`.
@@ -409,7 +409,7 @@ Execution uses a run-owned temporary Cargo overlay under the run work root.
 The production Rust implementation remains a read-only path dependency:
 
 ```text
-C:\Personal\GitHub\Dev\hacp-spec\hacp-rs
+<workspace>\hacp-spec\hacp-rs
 ```
 
 The RS07 execution model requires:
@@ -500,7 +500,7 @@ The following evidence root remains valid and is explicitly not the historical
 `HACP_RUST\HACP v1.1.0` laboratory workspace:
 
 ```text
-C:\Temp\hacp-rust-verification\evidence
+%TEMP%\hacp-rust-verification\evidence
 ```
 
 Final current-state conclusion:

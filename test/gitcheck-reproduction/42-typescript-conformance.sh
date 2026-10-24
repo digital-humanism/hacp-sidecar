@@ -186,7 +186,7 @@ echo
 echo '=== 3. HC2-55 CLI DECISION CONFORMANCE ==='
 
 GC="$(cygpath -w "$GC")" \
-BASH_EXE='C:\Program Files\Git\bin\bash.exe' \
+BASH_EXE="$(cygpath -w "$(command -v bash)")" \
 BRIDGE="$(cygpath -w "$BRIDGE")" \
 HC2_DIR="$(cygpath -w "$HC2_DIR")" \
 python - <<'PY' \

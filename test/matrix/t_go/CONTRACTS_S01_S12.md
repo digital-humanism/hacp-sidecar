@@ -6,7 +6,7 @@ Basis: `SIDECAR_MATRIX_FINAL_PREPARATION_AUDIT_RU_2026-10-17.md` (S01–S12 are 
 Model: `VERIFICATION SURFACE = ENVIRONMENT CONTRACT + EXECUTION CONTRACT + EXACT FILE/TOOL IDENTITY + EXPECTED EVIDENCE`.
 
 Common rules for all S01–S12:
-- Execution: HUMAN / WINDOWS (`C:\Personal\GitHub\Dev\{hacp-sidecar,hacp-spec,humanist-core}`).
+- Execution: HUMAN / WINDOWS using sibling checkouts under an arbitrary `<workspace>` root: `hacp-sidecar`, `hacp-spec`, and `humanist-core`.
 - Identity gates before/after each run: `git rev-parse HEAD`, `git rev-parse HEAD^{tree}`, `git status --short` (baseline; no synthetic cross-environment counters).
 - Evidence directory is outside working trees; cleanup is limited to owned processes.
 - Verdict boundaries: **Core ≠ HC2** (separate verdicts even when sharing a toolchain); **Rust Core = 36/38 direct + 2 adjudicated (NOT 38/38 direct)**; **Rust HC2 = 55/55, a separate verdict**; **Go HTTP B15 = authorization + real upstream forwarding + real upstream response**; **Rust HTTP B16 = authorization + local response, with NO upstream-forwarding claim**; **Timing = INFORMATIONAL, with no established normative threshold**.
@@ -86,7 +86,7 @@ EVIDENCE: console, RC, identity. GUARDS: clone clean. DEPENDENCIES: C (runner bu
 ENVIRONMENT: REPO=S (runner `hacp-conformance-runner.exe`, built using `go build -o <run>\hacp-conformance-runner.exe .\cmd\hacp-conformance-runner`) + P (harness, vectors/enforcement-v2, pin). Python 3.13.
 COMMANDS (from `hacp-spec\harness`):
 ```powershell
-python .\enforcement_v2_runner.py --runner C:\Personal\GitHub\Dev\hacp-sidecar\hacp-conformance-runner.exe --vectors-dir ..\vectors\enforcement-v2 --implementation-name hacp-sidecar --implementation-version 0.5.0 --output console --verbose
+python .\enforcement_v2_runner.py --runner ..\..\hacp-sidecar\hacp-conformance-runner.exe --vectors-dir ..\vectors\enforcement-v2 --implementation-name hacp-sidecar --implementation-version 0.5.0 --output console --verbose
 ```
 EXPECTED: `RESULTS: 55/55 passed` (sidecar runtime black-box). Distinguish from S01 A5 (SPEC-owned Go runner); verdicts are separate.
 ENV RED: runner build; pin; dependencies. BEHAVIORAL RED: mismatch (including reason-code classes — see historical qualification concerning strict-reason diagnostics).

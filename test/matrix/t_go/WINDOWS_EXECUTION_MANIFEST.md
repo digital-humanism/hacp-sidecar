@@ -52,7 +52,7 @@ Ports: D and B use 18082, so they must run sequentially; S06 (sidecar :18080) co
 
 # SURFACE A — Go provenance tests + full regression
 - MATRIX_ROWS: B1,B2,B3,B5,B7,B8,B10(H01/H02),B11,B12 | OWNER: S | LANG: Go ≥ 1.26.5 (`go.mod:3`)
-- EXPECTED_LOCAL_REPOSITORY_PATHS: `C:\Personal\GitHub\Dev\hacp-sidecar` | REQUIRED_FILES: `internal/proxy/r4_provenance_verification_test.go` (prepared; CURRENT_ADMISSION_STATUS=PENDING), tracked test suite (159 `func Test`)
+- EXPECTED_LOCAL_REPOSITORY_PATHS: sibling checkout `<workspace>\hacp-sidecar` | REQUIRED_FILES: `internal/proxy/r4_provenance_verification_test.go` (prepared; CURRENT_ADMISSION_STATUS=PENDING), tracked test suite (159 `func Test`)
 - ENVIRONMENT_PREPARATION: `go mod download` (if needed) | PREFLIGHT: `go version`; PROXY variables empty; input SHA-256; status=baseline | READINESS: 12 gates PASS
 - ENTRYPOINT: `go test` | EXACT_WINDOWS_COMMANDS:
 ```powershell
@@ -123,7 +123,7 @@ go test ./... -count=1
 
 # SURFACE S05 — HC2-55 runtime black-box (B4)
 - MATRIX_ROWS: B4 | OWNER: S runner + P harness | LANG: Go runner + Python
-- ENTRYPOINT: `python .\enforcement_v2_runner.py --runner C:\Personal\GitHub\Dev\hacp-sidecar\hacp-conformance-runner.exe --vectors-dir ..\vectors\enforcement-v2 --implementation-name hacp-sidecar --implementation-version 0.5.0 --output console --verbose`
+- ENTRYPOINT: `python .\enforcement_v2_runner.py --runner ..\..\hacp-sidecar\hacp-conformance-runner.exe --vectors-dir ..\vectors\enforcement-v2 --implementation-name hacp-sidecar --implementation-version 0.5.0 --output console --verbose`
 - EXECUTION_ORDER: Phase 3 | EXPECTED_RESULT: `RESULTS: 55/55` (sidecar black-box; ≠ S01 A5)
 - PASS: exact count | ENVIRONMENT_RED: runner build/pin | BEHAVIORAL_RED: mismatch | EVIDENCE: verbose console, RC, runner SHA | GUARDS: S/P clean | DEPENDENCIES: runner build
 

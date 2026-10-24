@@ -7,7 +7,7 @@ CLOSED — PASS
 Target repository:
 
 ```text
-C:\Personal\GitHub\Mount\hacp-sidecar
+<workspace>\hacp-sidecar
 ```
 
 Target baseline:
@@ -137,10 +137,10 @@ Execution surfaces:
 
 ```text
 Go target:
-C:\Personal\GitHub\Mount\hacp-sidecar
+<workspace>\hacp-sidecar
 
 Python SDK:
-C:\Personal\GitHub\Dev\humanist-core
+<workspace>\humanist-core
 
 sidecar:
 http://127.0.0.1:8080

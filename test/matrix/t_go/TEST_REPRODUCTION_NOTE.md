@@ -100,8 +100,8 @@ A fresh isolated reproduction of the Go HTTP functional surface `D` / B15 was co
 Fresh run roots:
 
 ```text
-RUN_ROOT=C:\Temp\hacp-go-http-repro-20261023-000854\run
-EVIDENCE_ROOT=C:\Temp\hacp-go-http-repro-20261023-000854\evidence
+RUN_ROOT=%TEMP%\hacp-go-http-repro-20261023-000854\run
+EVIDENCE_ROOT=%TEMP%\hacp-go-http-repro-20261023-000854\evidence
 ```
 
 Repository identities recorded by preflight:

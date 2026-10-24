@@ -724,7 +724,7 @@ The current `hacp-spec` source was materialized from the exact Git object.
 The derived conformance script was bound to:
 
 ```text
-GC='/mnt/c/Personal/GitHub/Mount/hacp-current-rust-conformance'
+GC='<local-current-rust-conformance-root>'
 SPEC="$GC/hacp-spec"
 RUNNER="$GC/build/rust/hacp-rs-runner"
 RESULT_DIR="$GC/results/rust-conformance"
