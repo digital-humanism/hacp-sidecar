@@ -189,6 +189,313 @@ Write-WvLog -Message "NO automatic acceptance. Human reviews evidence and decide
 
 $VerificationReportPath = Join-Path $EvidenceRoot 'T_GO_VERIFICATION_REPORT.md'
 
+# Portable canonical-vector resolution for human-readable report metadata.
+$TGoSidecarRoot = [System.IO.Path]::GetFullPath(
+    (Join-Path $PSScriptRoot '..\..\..\..')
+)
+$TGoWorkspaceRoot = Split-Path -Parent $TGoSidecarRoot
+$TGoSpecRoot = Join-Path $TGoWorkspaceRoot 'hacp-spec'
+
+if (-not (Test-Path -LiteralPath $TGoSpecRoot -PathType Container)) {
+    throw "T_GO_REPORT_SPEC_ROOT_MISSING=$TGoSpecRoot"
+}
+
+function Get-TGoCanonicalVectors {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path,
+
+        [Parameter(Mandatory)]
+        [int]$ExpectedCount,
+
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    $Vectors = @(
+        Get-ChildItem `
+            -LiteralPath $Path `
+            -File `
+            -Filter '*.json' |
+        Sort-Object Name |
+        ForEach-Object {
+            Get-Content -LiteralPath $_.FullName -Raw |
+                ConvertFrom-Json
+        }
+    )
+
+    if ($Vectors.Count -ne $ExpectedCount) {
+        throw "T_GO_REPORT_CANONICAL_COUNT name=$Name actual=$($Vectors.Count) expected=$ExpectedCount"
+    }
+
+    $Ids = @($Vectors | ForEach-Object { $_.test_id })
+
+    $DuplicateIds = @(
+        $Ids |
+        Group-Object |
+        Where-Object Count -ne 1
+    )
+
+    if ($DuplicateIds.Count -ne 0) {
+        throw "T_GO_REPORT_CANONICAL_DUPLICATE_ID name=$Name"
+    }
+
+    return $Vectors
+}
+
+function ConvertTo-TGoMarkdownCell {
+    param([AllowNull()][object]$Value)
+
+    if ($null -eq $Value) {
+        return ''
+    }
+
+    return ([string]$Value).
+        Replace('|', '\|').
+        Replace("`r", ' ').
+        Replace("`n", ' ')
+}
+
+function Format-TGoExpected {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Vector
+    )
+
+    if (-not $Vector.PSObject.Properties['expected']) {
+        throw "T_GO_REPORT_EXPECTED_MISSING vector=$($Vector.test_id)"
+    }
+
+    $Expected = $Vector.expected
+
+    if (-not $Expected.PSObject.Properties['outcome']) {
+        throw "T_GO_REPORT_EXPECTED_OUTCOME_MISSING vector=$($Vector.test_id)"
+    }
+
+    $Parts = [System.Collections.Generic.List[string]]::new()
+    $Parts.Add([string]$Expected.outcome)
+
+    if ($Expected.PSObject.Properties['reason_codes']) {
+        $Reasons = @($Expected.reason_codes)
+
+        if ($Reasons.Count -gt 0) {
+            $Parts.Add(($Reasons -join ', '))
+        }
+    }
+
+    return ($Parts -join ' / ')
+}
+
+function Get-TGoHarnessEvidenceMap {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Text
+    )
+
+    $Map = @{}
+
+    foreach ($Match in [regex]::Matches(
+        $Text,
+        '(?m)^\[PASS\]\s+(?<id>[A-Z0-9-]+):'
+    )) {
+        $Id = $Match.Groups['id'].Value
+
+        if ($Map.ContainsKey($Id)) {
+            throw "T_GO_REPORT_DUPLICATE_RUNTIME_VECTOR=$Id"
+        }
+
+        $Map[$Id] = [pscustomobject]@{
+            Evidence       = 'PASS'
+            Classification = 'DIRECT'
+        }
+    }
+
+    return $Map
+}
+
+function Get-TGoPythonEvidenceMap {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Text,
+
+        [Parameter(Mandatory)]
+        [string]$Pattern
+    )
+
+    $Map = @{}
+
+    foreach ($Match in [regex]::Matches($Text, $Pattern)) {
+        $Id = $Match.Groups['id'].Value
+
+        if ($Map.ContainsKey($Id)) {
+            throw "T_GO_REPORT_DUPLICATE_RUNTIME_VECTOR=$Id"
+        }
+
+        $Map[$Id] = [pscustomobject]@{
+            Evidence       = 'PASS'
+            Classification = 'DIRECT'
+        }
+    }
+
+    return $Map
+}
+
+function Get-TGoRustCoreEvidenceMap {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Text
+    )
+
+    $Map = @{}
+
+    $Matches = [regex]::Matches(
+        $Text,
+        '(?ms)^\[(?<status>PASS|FAIL)\]\s+(?<id>CORE-[A-Z0-9-]+):[^\r\n]*(?<tail>.*?)(?=^\[(?:PASS|FAIL)\]\s+CORE-|\z)'
+    )
+
+    foreach ($Match in $Matches) {
+        $Id = $Match.Groups['id'].Value
+        $Status = $Match.Groups['status'].Value
+        $Tail = $Match.Groups['tail'].Value
+
+        if ($Map.ContainsKey($Id)) {
+            throw "T_GO_REPORT_DUPLICATE_RUNTIME_VECTOR=$Id"
+        }
+
+        $Evidence = $Status
+        $Classification = 'DIRECT'
+
+        if ($Status -eq 'FAIL' -and $Tail -match 'ADJUDICATED:') {
+            $Classification = 'ADJUDICATED'
+
+            $Mismatch = [regex]::Match(
+                $Tail,
+                "outcome_mismatch'.*?'expected':\s*'(?<expected>[^']+)'.*?'actual':\s*'(?<actual>[^']+)'"
+            )
+
+            if ($Mismatch.Success) {
+                $Evidence = 'FAIL — expected {0}, observed {1}' -f `
+                    $Mismatch.Groups['expected'].Value,
+                    $Mismatch.Groups['actual'].Value
+            }
+            else {
+                $Evidence = 'FAIL — adjudicated'
+            }
+        }
+
+        $RawWire = [regex]::Match(
+            $Tail,
+            '(?m)^\s*RAW-WIRE:\s*(?<value>[^\r\n]+)'
+        )
+
+        if ($RawWire.Success) {
+            $Evidence = '{0} — RAW-WIRE: {1}' -f `
+                $Status,
+                $RawWire.Groups['value'].Value.Trim()
+        }
+
+        $Map[$Id] = [pscustomobject]@{
+            Evidence       = $Evidence
+            Classification = $Classification
+        }
+    }
+
+    return $Map
+}
+
+function Assert-TGoVectorEvidenceMap {
+    param(
+        [Parameter(Mandatory)]
+        [object[]]$Vectors,
+
+        [Parameter(Mandatory)]
+        [hashtable]$EvidenceMap,
+
+        [Parameter(Mandatory)]
+        [string]$Name
+    )
+
+    $ExpectedIds = @($Vectors | ForEach-Object { $_.test_id })
+    $ObservedIds = @($EvidenceMap.Keys)
+
+    $Missing = @(
+        $ExpectedIds |
+        Where-Object { $_ -notin $ObservedIds }
+    )
+
+    $Unexpected = @(
+        $ObservedIds |
+        Where-Object { $_ -notin $ExpectedIds }
+    )
+
+    if ($Missing.Count -ne 0 -or $Unexpected.Count -ne 0) {
+        throw (
+            'T_GO_REPORT_VECTOR_SET_MISMATCH name={0} missing={1} unexpected={2}' -f
+            $Name,
+            ($Missing -join ','),
+            ($Unexpected -join ',')
+        )
+    }
+}
+
+function Add-TGoVectorLedger {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Title,
+
+        [Parameter(Mandatory)]
+        [object[]]$Vectors,
+
+        [Parameter(Mandatory)]
+        [hashtable]$EvidenceMap
+    )
+
+    Add-TGoReportLine ('#### {0}' -f $Title)
+    Add-TGoReportLine ''
+    Add-TGoReportLine '| Vector | Description | Expected | Evidence | Classification |'
+    Add-TGoReportLine '|---|---|---|---|---|'
+
+    foreach ($Vector in $Vectors) {
+        $Id = [string]$Vector.test_id
+
+        if (-not $EvidenceMap.ContainsKey($Id)) {
+            throw "T_GO_REPORT_VECTOR_EVIDENCE_MISSING=$Id"
+        }
+
+        $Evidence = $EvidenceMap[$Id]
+
+        $Description = ConvertTo-TGoMarkdownCell $Vector.description
+        $Expected = ConvertTo-TGoMarkdownCell (Format-TGoExpected $Vector)
+        $EvidenceText = ConvertTo-TGoMarkdownCell $Evidence.Evidence
+        $Classification = ConvertTo-TGoMarkdownCell $Evidence.Classification
+
+        Add-TGoReportLine (
+            '| `{0}` | {1} | `{2}` | {3} | **{4}** |' -f
+            $Id,
+            $Description,
+            $Expected,
+            $EvidenceText,
+            $Classification
+        )
+    }
+
+    Add-TGoReportLine ''
+}
+
+$TGoCoreVectors = @(
+    Get-TGoCanonicalVectors `
+        -Path (Join-Path $TGoSpecRoot 'vectors') `
+        -ExpectedCount 38 `
+        -Name 'Core'
+)
+
+$TGoHC2Vectors = @(
+    Get-TGoCanonicalVectors `
+        -Path (Join-Path $TGoSpecRoot 'vectors\enforcement-v2') `
+        -ExpectedCount 55 `
+        -Name 'HC2'
+)
+
 function Get-TGoEvidenceText {
     param(
         [Parameter(Mandatory)]
@@ -475,6 +782,35 @@ $PsRotMessage = Get-TGoFirstLine `
 # Build Markdown.
 # ---------------------------------------------------------------------------
 
+$TGoGoCoreMap = Get-TGoHarnessEvidenceMap $GoCore
+$TGoGoHC2Map  = Get-TGoHarnessEvidenceMap $GoHC2
+
+$TGoTsCoreMap = Get-TGoHarnessEvidenceMap $TsCore
+$TGoTsHC2Map  = Get-TGoHarnessEvidenceMap $TsHC2
+
+$TGoPyCoreMap = Get-TGoPythonEvidenceMap `
+    -Text $PyCore `
+    -Pattern 'test_conformance_vector\[(?<id>[A-Z0-9-]+)\]\s+PASSED'
+
+$TGoPyHC2Map = Get-TGoPythonEvidenceMap `
+    -Text $PyHC2 `
+    -Pattern 'test_enforcement_v2_family_a_vector\[(?<id>[A-Z0-9-]+)\]\s+PASSED'
+
+$TGoRsCoreMap = Get-TGoRustCoreEvidenceMap $RsCore
+$TGoRsHC2Map  = Get-TGoHarnessEvidenceMap $RsHC2
+
+Assert-TGoVectorEvidenceMap $TGoCoreVectors $TGoGoCoreMap 'Go Core'
+Assert-TGoVectorEvidenceMap $TGoHC2Vectors  $TGoGoHC2Map  'Go HC2'
+
+Assert-TGoVectorEvidenceMap $TGoCoreVectors $TGoTsCoreMap 'TypeScript Core'
+Assert-TGoVectorEvidenceMap $TGoHC2Vectors  $TGoTsHC2Map  'TypeScript HC2'
+
+Assert-TGoVectorEvidenceMap $TGoCoreVectors $TGoPyCoreMap 'Python Core'
+Assert-TGoVectorEvidenceMap $TGoHC2Vectors  $TGoPyHC2Map  'Python HC2'
+
+Assert-TGoVectorEvidenceMap $TGoCoreVectors $TGoRsCoreMap 'Rust Core'
+Assert-TGoVectorEvidenceMap $TGoHC2Vectors  $TGoRsHC2Map  'Rust HC2'
+
 $Report = [System.Collections.Generic.List[string]]::new()
 
 function Add-TGoReportLine {
@@ -504,6 +840,16 @@ Add-TGoReportLine '- Core: **38/38 all pass**'
 Add-TGoReportLine '- HC2: **55/55 all pass**'
 Add-TGoReportLine ''
 
+Add-TGoVectorLedger `
+    -Title 'HACP-Core — 38 vectors' `
+    -Vectors $TGoCoreVectors `
+    -EvidenceMap $TGoGoCoreMap
+
+Add-TGoVectorLedger `
+    -Title 'HC2 — 55 vectors' `
+    -Vectors $TGoHC2Vectors `
+    -EvidenceMap $TGoGoHC2Map
+
 Add-TGoReportLine '### TypeScript — `hacp-ts`'
 Add-TGoReportLine ''
 Add-TGoReportLine 'Reproduced implementation: TypeScript reference/conformance implementation from `hacp-spec`.'
@@ -515,6 +861,16 @@ Add-TGoReportLine '- HC2: **55/55 all pass**'
 Add-TGoReportLine '- package conformance regression: **39/39 tests all pass**'
 Add-TGoReportLine ''
 
+Add-TGoVectorLedger `
+    -Title 'HACP-Core — 38 vectors' `
+    -Vectors $TGoCoreVectors `
+    -EvidenceMap $TGoTsCoreMap
+
+Add-TGoVectorLedger `
+    -Title 'HC2 — 55 vectors' `
+    -Vectors $TGoHC2Vectors `
+    -EvidenceMap $TGoTsHC2Map
+
 Add-TGoReportLine '### Python — `humanist-core`'
 Add-TGoReportLine ''
 Add-TGoReportLine 'Reproduced implementation: Python SDK implementation in `humanist-core`.'
@@ -524,6 +880,16 @@ Add-TGoReportLine ''
 Add-TGoReportLine '- Core: **38/38 all pass**'
 Add-TGoReportLine '- HC2: **55/55 all pass**'
 Add-TGoReportLine ''
+
+Add-TGoVectorLedger `
+    -Title 'HACP-Core — 38 vectors' `
+    -Vectors $TGoCoreVectors `
+    -EvidenceMap $TGoPyCoreMap
+
+Add-TGoVectorLedger `
+    -Title 'HC2 — 55 vectors' `
+    -Vectors $TGoHC2Vectors `
+    -EvidenceMap $TGoPyHC2Map
 
 Add-TGoReportLine '### Rust — `hacp-rs`'
 Add-TGoReportLine ''
@@ -538,6 +904,15 @@ Add-TGoReportLine '- `CORE-RUNTIME-004`: CHECKPOINT expected, DENY observed — 
 Add-TGoReportLine '- `CORE-INV5-006`: direct raw-wire **DENY / INVALID_ACTION**'
 Add-TGoReportLine ''
 
+Add-TGoVectorLedger `
+    -Title 'HACP-Core — 38 vectors' `
+    -Vectors $TGoCoreVectors `
+    -EvidenceMap $TGoRsCoreMap
+
+Add-TGoVectorLedger `
+    -Title 'HC2 — 55 vectors' `
+    -Vectors $TGoHC2Vectors `
+    -EvidenceMap $TGoRsHC2Map
 Add-TGoReportLine '### Core / HC2 reproduction matrix'
 Add-TGoReportLine ''
 Add-TGoReportLine '| Implementation | HACP-Core | HC2 |'
@@ -695,13 +1070,35 @@ $Report |
         -LiteralPath $VerificationReportPath `
         -Encoding utf8
 
-# Required console presentation:
-# one blank line immediately after the existing
-# "NO automatic acceptance..." reconciliation message,
-# then the exact Markdown report content.
+# Console presentation intentionally omits per-vector ledgers.
+# The complete evidence report remains in T_GO_VERIFICATION_REPORT.md.
+$ConsoleReport = [System.Collections.Generic.List[string]]::new()
+$SkippingVectorLedger = $false
+
+foreach ($Line in $Report) {
+    if ($Line -match '^#### (?:HACP-Core — 38 vectors|HC2 — 55 vectors)$') {
+        $SkippingVectorLedger = $true
+        continue
+    }
+
+    if ($SkippingVectorLedger) {
+        if ($Line -match '^### (?:Go|TypeScript|Python|Rust|Core / HC2 reproduction matrix)') {
+            $SkippingVectorLedger = $false
+        }
+        else {
+            continue
+        }
+    }
+
+    $ConsoleReport.Add($Line)
+}
 
 Write-Host ''
 
-Get-Content -LiteralPath $VerificationReportPath
+foreach ($Line in $ConsoleReport) {
+    Write-Host $Line
+}
 
+Write-Host ''
+Write-Host ("T_GO_VERIFICATION_REPORT={0}" -f $VerificationReportPath)
 # Explicitly withheld (§52): SIDECAR_A2=PASS, RELEASE_READY=YES, ACCEPTANCE=PASS, GO.
