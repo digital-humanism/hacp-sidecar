@@ -11,17 +11,45 @@ with -ContinueIndependentSurfaces. No automatic retry of BEHAVIORAL_RED.
 
 [CmdletBinding()]
 param(
-    [string]$SidecarRoot = 'C:\Personal\GitHub\Dev\hacp-sidecar',
-    [string]$SpecRoot    = 'C:\Personal\GitHub\Dev\hacp-spec',
-    [string]$CoreRoot    = 'C:\Personal\GitHub\Dev\humanist-core',
-    [string]$RunRoot     = 'C:\Temp\hacp-1.1.1-verification\run',
-    [string]$EvidenceRoot= 'C:\Temp\hacp-1.1.1-verification\evidence',
+    [string]$SidecarRoot = '',
+    [string]$SpecRoot    = '',
+    [string]$CoreRoot    = '',
+    [string]$RunRoot     = '',
+    [string]$EvidenceRoot= '',
     [string]$Surface     = '',          # optional single-surface resume
     [switch]$ContinueIndependentSurfaces
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Portable default path resolution.
+# Explicit caller-supplied paths take precedence.
+if (-not $SidecarRoot) {
+    $SidecarRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..'))
+}
+
+$WorkspaceRoot = Split-Path -Parent $SidecarRoot
+
+if (-not $SpecRoot) {
+    $SpecRoot = Join-Path $WorkspaceRoot 'hacp-spec'
+}
+
+if (-not $CoreRoot) {
+    $CoreRoot = Join-Path $WorkspaceRoot 'humanist-core'
+}
+
+if (-not $RunRoot -or -not $EvidenceRoot) {
+    $VerificationRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'hacp-1.1.1-verification'
+}
+
+if (-not $RunRoot) {
+    $RunRoot = Join-Path $VerificationRoot 'run'
+}
+
+if (-not $EvidenceRoot) {
+    $EvidenceRoot = Join-Path $VerificationRoot 'evidence'
+}
 
 Import-Module (Join-Path $PSScriptRoot 'WindowsVerification.Common.psm1') -Force
 

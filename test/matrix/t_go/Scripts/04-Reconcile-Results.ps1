@@ -9,13 +9,27 @@ SIDECAR_A2=PASS / RELEASE_READY / ACCEPTANCE=PASS / GO. Final decision is human.
 
 [CmdletBinding()]
 param(
-    [string]$RunRoot      = 'C:\Temp\hacp-1.1.1-verification\run',
-    [string]$EvidenceRoot = 'C:\Temp\hacp-1.1.1-verification\evidence',
+    [string]$RunRoot      = '',
+    [string]$EvidenceRoot = '',
     [string]$OutputDir    = ''
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Portable default path resolution.
+# Explicit caller-supplied paths take precedence.
+if (-not $RunRoot -or -not $EvidenceRoot) {
+    $VerificationRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'hacp-1.1.1-verification'
+}
+
+if (-not $RunRoot) {
+    $RunRoot = Join-Path $VerificationRoot 'run'
+}
+
+if (-not $EvidenceRoot) {
+    $EvidenceRoot = Join-Path $VerificationRoot 'evidence'
+}
 
 Import-Module (Join-Path $PSScriptRoot 'WindowsVerification.Common.psm1') -Force
 

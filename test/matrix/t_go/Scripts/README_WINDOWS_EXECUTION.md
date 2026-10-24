@@ -32,11 +32,14 @@ Do not assume Unix utilities or WSL. Windows-native cmdlets only.
 - Toolchain (inventory by `00`; nothing is auto-installed): git, Go ≥ 1.26.x, Python 3.13.x + pip,
   pytest, Node + npm, Rust `stable-x86_64-pc-windows-msvc` + cargo/rustup, protoc, Docker + docker compose,
   VS/VC Build Tools (MSVC ABI).
-- Local repositories at:
-  - `SIDECAR_ROOT = C:\Personal\GitHub\Dev\hacp-sidecar`
-  - `SPEC_ROOT    = C:\Personal\GitHub\Dev\hacp-spec`
-  - `CORE_ROOT    = C:\Personal\GitHub\Dev\humanist-core`
-- External runtime/evidence dirs (NOT inside tracked repos), e.g. `C:\Temp\hacp-1.1.1-verification\{run,evidence}`.
+- Default repository layout uses sibling clones under an arbitrary workspace root:
+  - `<workspace>\hacp-sidecar`
+  - `<workspace>\hacp-spec`
+  - `<workspace>\humanist-core`
+- Repository paths are derived automatically from the repository-owned script location.
+- Explicit `-SidecarRoot`, `-SpecRoot`, and `-CoreRoot` values override the defaults.
+- Runtime/evidence directories default to the operating system temporary directory under `hacp-1.1.1-verification\{run,evidence}`.
+- Explicit `-RunRoot` and `-EvidenceRoot` values override the defaults.
 
 ## 2. Transfer prepared verification files (PHASE 0A — transfer only)
 
@@ -65,45 +68,26 @@ S11/S12 hashes to the package record. Review `preflight-summary.json` + `transfe
 All scripts accept explicit paths (no hardcoded user profile). From the transferred package:
 
 ```powershell
-Set-Location <PACKAGE_ROOT>\Scripts
+Set-Location <workspace>\hacp-sidecar\test\matrix\t_go\Scripts
 
 # 00 — READ-ONLY preflight (identity, files, toolchain, ports, env). Does NOT run tests.
-.\00-Preflight.ps1 `
-  -SidecarRoot "C:\Personal\GitHub\Dev\hacp-sidecar" `
-  -SpecRoot    "C:\Personal\GitHub\Dev\hacp-spec" `
-  -CoreRoot    "C:\Personal\GitHub\Dev\humanist-core" `
-  -RunRoot     "C:\Temp\hacp-1.1.1-verification\run" `
-  -EvidenceRoot "C:\Temp\hacp-1.1.1-verification\evidence"
+.\00-Preflight.ps1
 
 # 01 — controlled MUTATING env prep (deps, builds, fixtures, S06 key readiness). No tests.
-.\01-Prepare-Environment.ps1 `
-  -SidecarRoot "C:\Personal\GitHub\Dev\hacp-sidecar" `
-  -SpecRoot    "C:\Personal\GitHub\Dev\hacp-spec" `
-  -CoreRoot    "C:\Personal\GitHub\Dev\humanist-core" `
-  -RunRoot     "C:\Temp\hacp-1.1.1-verification\run" `
-  -EvidenceRoot "C:\Temp\hacp-1.1.1-verification\evidence"
+.\01-Prepare-Environment.ps1
 
 # 02 — MAIN orchestrator: 16 surfaces in approved order. Per-surface verdicts.
-.\02-Run-Verification.ps1 `
-  -SidecarRoot "C:\Personal\GitHub\Dev\hacp-sidecar" `
-  -SpecRoot    "C:\Personal\GitHub\Dev\hacp-spec" `
-  -CoreRoot    "C:\Personal\GitHub\Dev\humanist-core" `
-  -RunRoot     "C:\Temp\hacp-1.1.1-verification\run" `
-  -EvidenceRoot "C:\Temp\hacp-1.1.1-verification\evidence"
+.\02-Run-Verification.ps1
 
 # 03 — cleanup (owned PIDs only) + final identity guards + evidence inventory.
-.\03-Postflight.ps1 `
-  -SidecarRoot "C:\Personal\GitHub\Dev\hacp-sidecar" `
-  -SpecRoot    "C:\Personal\GitHub\Dev\hacp-spec" `
-  -CoreRoot    "C:\Personal\GitHub\Dev\humanist-core" `
-  -RunRoot     "C:\Temp\hacp-1.1.1-verification\run" `
-  -EvidenceRoot "C:\Temp\hacp-1.1.1-verification\evidence"
+.\03-Postflight.ps1
 
 # 04 — reconcile actual results to the authoritative 36-row matrix (NO tests, NO acceptance).
-.\04-Reconcile-Results.ps1 `
-  -RunRoot     "C:\Temp\hacp-1.1.1-verification\run" `
-  -EvidenceRoot "C:\Temp\hacp-1.1.1-verification\evidence"
+.\04-Reconcile-Results.ps1
 ```
+
+For a non-sibling repository layout, pass explicit `-SidecarRoot`, `-SpecRoot`, and `-CoreRoot` values.
+Use explicit `-RunRoot` and `-EvidenceRoot` values when OS-temp storage is not desired.
 
 ## 5. Interpret 00 (preflight)
 
