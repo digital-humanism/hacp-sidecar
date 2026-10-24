@@ -1,7 +1,7 @@
 # Readme_map_file_RS — Rust artifact mapping document (NOT an automatic copying instruction)
 
 Date: 2026-10-17
-Package: `C:\Personal\GitHub\Dev\hacp-sidecar\test\matrix\t_rs`
+Package: repository-owned `test/matrix/t_rs`
 Status: `INTERNAL / PREPARATION / NOT TEST EVIDENCE / NOT ACCEPTANCE EVIDENCE / NOT ADMISSION AUTHORIZATION`
 
 Rule: the current verification artifact is used directly from `t_rs`. File presence does **NOT** constitute admission into S/P/C. `ARTIFACT PRESENCE != ADMISSION`. Sequence: PREPARE → LOCATE → STATIC IDENTITY CHECK → HUMAN WINDOWS EXECUTION → HUMAN REVIEW → SEPARATE ADMISSION DECISION.
@@ -47,7 +47,7 @@ Rule: the current verification artifact is used directly from `t_rs`. File prese
 - ARTIFACT_ROLE: verification-only Rust test — **RS07 — Rust autonomy budget verification** (B9 gap: `autonomy_budget.max_actions` exhaustion fail-closed). PHYSICAL FILE NAME != SEMANTIC CLAIM NAME: the file name contains "replay" (historical/physical naming); the authoritative claim covers autonomy-budget exhaustion ONLY; Rust token-replay/max_uses semantics are NOT claimed (RUST_TOKEN_REPLAY_SEMANTICS=NOT_IMPLEMENTED).
 - RS_SURFACE_ID: RS07 | MATRIX_ROWS: B9
 - TARGET_REPOSITORY: P (hacp-spec/hacp-rs) | TARGET_RELATIVE_PATH: **`hacp-rs/tests/budget_replay_verification.rs`**
-- HISTORICAL / INTENDED LOCAL WINDOWS LOCATION: `C:\Personal\GitHub\Dev\hacp-spec\hacp-rs\tests\budget_replay_verification.rs`
+- INTENDED PORTABLE WINDOWS LOCATION: `<workspace>\hacp-spec\hacp-rs\tests\budget_replay_verification.rs`
 - ARTIFACT_REQUIRED=**YES** | ARTIFACT_LOCATION=**`t_rs`** | ADMISSION_REQUIRED=**YES** | ADMISSION_TIMING=AFTER_HUMAN_VERIFICATION_ONLY | CURRENT_ADMISSION_STATUS=PENDING
 - NOTES: `include_str!("../../vectors/core_inv1_001_golden.json")` is resolved relative to `hacp-rs/tests/` (tracked-test convention). Uses only tracked APIs: `hacp_rs::evaluate::evaluate`, `hacp_rs::jcs::canonicalize` + dev-deps (base64/ed25519_dalek/serde_json/sha2/hex), as in the tracked `tests/authorization_v2_signed_deny_red.rs`. The target path follows the existing `tests/*.rs` convention. Verification-only: does not modify production `evaluate.rs` or introduce new production semantics.
 
@@ -70,7 +70,7 @@ Note: the RS01 procedure `rust-core-composition-reproduction.md` exists as an un
 
 ## 3. Applying the mapping (human-controlled)
 
-1. Locate exact file (RS PHASE 0A): `C:\Personal\GitHub\Dev\hacp-sidecar\test\matrix\t_rs\RS07_budget_replay_verification.rs`. Do not copy anything into `hacp-spec`; verify the RS01 procedure separately under Phase 0B.
+1. Locate exact file (RS PHASE 0A): repository-owned `test/matrix/t_rs/RS07_budget_replay_verification.rs`. Do not copy anything into `hacp-spec`; verify the RS01 procedure separately under Phase 0B.
 2. Verify SHA/path/status/identity (RS PHASE 0B): `Get-FileHash -Algorithm SHA256`, path existence and repository status; classification `PRESENT_MATCHING` / `MISSING` / `CONFLICT`; gate `STAGED_FILES=0`.
 3. Execute `WINDOWS_EXECUTION_MANIFEST_RS.md` (RS PHASE 1–6).
 4. Human review (POST-RUN).

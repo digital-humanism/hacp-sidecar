@@ -5,11 +5,22 @@
 ### 00 — Preflight
 
 ```powershell
-$Scripts = 'C:\Personal\GitHub\Dev\hacp-sidecar\test\matrix\t_rs\Scripts'
-$RunRoot = 'C:\Temp\hacp-rust-verification\run'
-$EvidenceRoot = 'C:\Temp\hacp-rust-verification\evidence'
+$SidecarRepo = (git rev-parse --show-toplevel).Trim()
+if ($LASTEXITCODE -ne 0 -or -not $SidecarRepo) {
+    throw 'Unable to resolve hacp-sidecar repository root'
+}
+
+$WorkspaceRoot = Split-Path -Parent $SidecarRepo
+$SpecRepo = Join-Path $WorkspaceRoot 'hacp-spec'
+$Scripts = Join-Path $SidecarRepo 'test\matrix\t_rs\Scripts'
+
+$VerificationRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'hacp-rust-verification'
+$RunRoot = Join-Path $VerificationRoot 'run'
+$EvidenceRoot = Join-Path $VerificationRoot 'evidence'
 
 & pwsh.exe -NoProfile -File (Join-Path $Scripts '00-Preflight.ps1') `
+    -SpecRepo $SpecRepo `
+    -SidecarRepo $SidecarRepo `
     -RunRoot $RunRoot `
     -EvidenceRoot $EvidenceRoot
 ```
@@ -18,6 +29,8 @@ $EvidenceRoot = 'C:\Temp\hacp-rust-verification\evidence'
 
 ```powershell
 & pwsh.exe -NoProfile -File (Join-Path $Scripts '01-Prepare-Environment.ps1') `
+    -SpecRepo $SpecRepo `
+    -SidecarRepo $SidecarRepo `
     -RunRoot $RunRoot `
     -EvidenceRoot $EvidenceRoot
 ```
@@ -26,6 +39,8 @@ $EvidenceRoot = 'C:\Temp\hacp-rust-verification\evidence'
 
 ```powershell
 & pwsh.exe -NoProfile -File (Join-Path $Scripts '02-Run-Verification.ps1') `
+    -SpecRepo $SpecRepo `
+    -SidecarRepo $SidecarRepo `
     -RunRoot $RunRoot `
     -EvidenceRoot $EvidenceRoot
 ```
@@ -34,6 +49,8 @@ $EvidenceRoot = 'C:\Temp\hacp-rust-verification\evidence'
 
 ```powershell
 & pwsh.exe -NoProfile -File (Join-Path $Scripts '03-Postflight.ps1') `
+    -SpecRepo $SpecRepo `
+    -SidecarRepo $SidecarRepo `
     -RunRoot $RunRoot `
     -EvidenceRoot $EvidenceRoot
 ```

@@ -32,7 +32,7 @@ HISTORICAL PASS != CURRENT CANDIDATE PASS
 
 ```text
 RS PHASE 0A  LOCATE required Rust verification artifacts in t_rs only
-             (explicitly: source artifact = C:\Personal\GitHub\Dev\hacp-sidecar\test\matrix\t_rs\RS07_budget_replay_verification.rs; no copying into hacp-spec;
+             (explicitly: source artifact = test/matrix/t_rs/RS07_budget_replay_verification.rs in hacp-sidecar; no copying into hacp-spec;
               NO staging/commit)
 RS PHASE 0B  SHA/path/status/identity validation of each verification artifact
              (Test-Path, Get-Item, Get-FileHash -Algorithm SHA256, git status --short -- <path>,
@@ -96,7 +96,7 @@ Environment preparation (builds/installations are MUTATING and human-controlled)
 - `RS06=NOT_APPLICABLE` — B6 coverage is EXACT (direct Rust tests). NEW_RUST_B6_FILE_REQUIRED=NO.
 
 # SURFACE RS07 — Rust autonomy budget verification (B9)
-- MATRIX_ROWS: B9 | OWNER: P | LANG: Rust | REQUIRED_FILES: `C:\Personal\GitHub\Dev\hacp-sidecar\test\matrix\t_rs\RS07_budget_replay_verification.rs` (in t_rs) → target `hacp-spec/hacp-rs/tests/budget_replay_verification.rs`
+- MATRIX_ROWS: B9 | OWNER: P | LANG: Rust | REQUIRED_FILES: `test/matrix/t_rs/RS07_budget_replay_verification.rs` (in hacp-sidecar t_rs) → target `hacp-spec/hacp-rs/tests/budget_replay_verification.rs`
 - ENTRYPOINT: `cargo +stable-x86_64-pc-windows-msvc test --locked --test budget_replay_verification`
 - EXECUTION_ORDER: RS PHASE 6 (after Phase 0A locate + Phase 0B validation) | EXPECTED_RESULT: `3 passed, 0 failed` (exhaustion→DENY+BUDGET_EXHAUSTED; boundary→exhausted; under-limit→ALLOW)
 - PASS_CRITERIA: all assertions PASS; SKIP=0 | ENVIRONMENT_RED: compile (tracked API mismatch)/toolchain | BEHAVIORAL_RED: exhaustion does not deny / under-limit incorrectly denied on budget grounds

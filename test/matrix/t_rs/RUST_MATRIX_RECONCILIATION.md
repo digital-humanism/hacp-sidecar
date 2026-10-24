@@ -79,7 +79,7 @@ RUST_BUDGET_TEST_COVERAGE=NONE
   (no tracked Rust test mentions budget/max_uses/replay/exhaust)
 ```
 
-Behavior exists, but tests are absent → `REQUIRES_ADDITIVE_PREPARATION` → **RS07 — Rust autonomy budget verification** (minimal verification-only artifact, actual Rust semantics, NOT Go `max_uses`). File: `C:\Personal\GitHub\Dev\hacp-sidecar\test\matrix\t_rs\RS07_budget_replay_verification.rs` → target `hacp-spec/hacp-rs/tests/budget_replay_verification.rs`.
+Behavior exists, but tests are absent → `REQUIRES_ADDITIVE_PREPARATION` → **RS07 — Rust autonomy budget verification** (minimal verification-only artifact, actual Rust semantics, NOT Go `max_uses`). File: repository-owned `test/matrix/t_rs/RS07_budget_replay_verification.rs` → target `hacp-spec/hacp-rs/tests/budget_replay_verification.rs`.
 
 ```text
 B9 Rust facet = autonomy budget exhaustion only

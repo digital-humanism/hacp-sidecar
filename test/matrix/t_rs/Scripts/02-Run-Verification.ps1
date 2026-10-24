@@ -10,10 +10,10 @@ recorded (never repaired); RS01 Core result is 36/38 direct + 2 adjudicated, nev
 
 [CmdletBinding()]
 param(
-    [string]$SpecRepo    = 'C:\Personal\GitHub\Dev\hacp-spec',
-    [string]$SidecarRepo = 'C:\Personal\GitHub\Dev\hacp-sidecar',
-    [string]$EvidenceRoot= 'C:\Temp\hacp-rust-verification\evidence',
-    [string]$RunRoot     = 'C:\Temp\hacp-rust-verification\run',
+    [string]$SpecRepo    = '',
+    [string]$SidecarRepo = '',
+    [string]$EvidenceRoot= '',
+    [string]$RunRoot     = '',
     [string]$RunDir      = '',
     [ValidateSet('RS01','RS02','RS03','RS04','RS05','RS07')][string]$Surface = '',
     [switch]$ContinueIndependentSurfaces
@@ -21,6 +21,30 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Portable default path resolution.
+# Explicit caller-supplied paths take precedence.
+if (-not $SidecarRepo) {
+    $SidecarRepo = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..'))
+}
+
+$WorkspaceRoot = Split-Path -Parent $SidecarRepo
+
+if (-not $SpecRepo) {
+    $SpecRepo = Join-Path $WorkspaceRoot 'hacp-spec'
+}
+
+if (-not $RunRoot -or -not $EvidenceRoot) {
+    $VerificationRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'hacp-rust-verification'
+}
+
+if (-not $RunRoot) {
+    $RunRoot = Join-Path $VerificationRoot 'run'
+}
+
+if (-not $EvidenceRoot) {
+    $EvidenceRoot = Join-Path $VerificationRoot 'evidence'
+}
 
 Import-Module (Join-Path $PSScriptRoot 'WindowsVerification.Rust.Common.psm1') -Force
 

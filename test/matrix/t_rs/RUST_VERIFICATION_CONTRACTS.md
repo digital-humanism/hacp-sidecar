@@ -60,7 +60,10 @@ Hermes — PREPARE ONLY (does not execute cargo/go/pytest/runtime/HTTP/benchmark
 - EXECUTION CONTRACT: `cargo +stable-x86_64-pc-windows-msvc test --locked` (from `hacp-rs`)
 - EXACT WINDOWS COMMANDS:
   ```powershell
-  cd C:\Personal\GitHub\Dev\hacp-spec\hacp-rs
+  $SidecarRepo = (git rev-parse --show-toplevel).Trim()
+  if ($LASTEXITCODE -ne 0 -or -not $SidecarRepo) { throw 'Unable to resolve hacp-sidecar repository root' }
+  $SpecRepo = Join-Path (Split-Path -Parent $SidecarRepo) 'hacp-spec'
+  Set-Location (Join-Path $SpecRepo 'hacp-rs')
   cargo +stable-x86_64-pc-windows-msvc test --locked
   ```
 - EXPECTED RESULT: `48 passed`, `1 ignored` (`ed25519_v1_red` — historical ignored witness), `0 failed`
@@ -122,7 +125,7 @@ Basis: `B6_RUST_COVERAGE=EXACT` (see `RUST_MATRIX_RECONCILIATION.md` §B6). Dire
 # RS07 — Rust autonomy budget verification (B9)
 
 - SURFACE_ID: RS07 | MATRIX_ROWS: B9 | REPOSITORY_OWNER: P (`hacp-spec/hacp-rs`)
-- EXACT SOURCE / TOOL PATHS: new verification-only test `C:\Personal\GitHub\Dev\hacp-sidecar\test\matrix\t_rs\RS07_budget_replay_verification.rs` → target `hacp-spec/hacp-rs/tests/budget_replay_verification.rs`; production `hacp-rs/src/evaluate.rs` (Step 9, NOT modified); golden vector `hacp-spec/vectors/core_inv1_001_golden.json`
+- EXACT SOURCE / TOOL PATHS: new verification-only test `test/matrix/t_rs/RS07_budget_replay_verification.rs` in the `hacp-sidecar` repository → target `hacp-spec/hacp-rs/tests/budget_replay_verification.rs`; production `hacp-rs/src/evaluate.rs` (Step 9, NOT modified); golden vector `hacp-spec/vectors/core_inv1_001_golden.json`
 - TOOLCHAIN: `cargo +stable-x86_64-pc-windows-msvc`
 - ENVIRONMENT CONTRACT: detached pin `3ea4adc…`; `CARGO_TARGET_DIR` outside repositories; clean tree; dev-deps already in crate (base64, ed25519_dalek, serde_json, sha2, hex — as in tracked tests)
 - ENVIRONMENT PREPARATION: Phase 0A locate existing RS07 artifact in `t_rs`; Phase 0B SHA/path/status/identity validation; toolchain
@@ -131,7 +134,10 @@ Basis: `B6_RUST_COVERAGE=EXACT` (see `RUST_MATRIX_RECONCILIATION.md` §B6). Dire
 - EXECUTION CONTRACT: `cargo +stable-x86_64-pc-windows-msvc test --locked --test budget_replay_verification`
 - EXACT WINDOWS COMMANDS:
   ```powershell
-  cd C:\Personal\GitHub\Dev\hacp-spec\hacp-rs
+  $SidecarRepo = (git rev-parse --show-toplevel).Trim()
+  if ($LASTEXITCODE -ne 0 -or -not $SidecarRepo) { throw 'Unable to resolve hacp-sidecar repository root' }
+  $SpecRepo = Join-Path (Split-Path -Parent $SidecarRepo) 'hacp-spec'
+  Set-Location (Join-Path $SpecRepo 'hacp-rs')
   cargo +stable-x86_64-pc-windows-msvc test --locked --test budget_replay_verification
   ```
 - EXPECTED RESULT: `3 passed, 0 failed` — `rs07_b9_budget_exhaustion_is_fail_closed`, `rs07_b9_replay_counter_at_limit_is_exhausted`, `rs07_b9_budget_not_exhausted_allows`

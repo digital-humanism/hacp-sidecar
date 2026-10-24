@@ -10,13 +10,27 @@ RUST_LOCAL_REPRODUCTION_VERIFIED + HUMAN_ACCEPTANCE_DECISION_REQUIRED.
 
 [CmdletBinding()]
 param(
-    [string]$EvidenceRoot = 'C:\Temp\hacp-rust-verification\evidence',
-    [string]$RunRoot      = 'C:\Temp\hacp-rust-verification\run',
+    [string]$EvidenceRoot = '',
+    [string]$RunRoot      = '',
     [string]$RunDir       = ''
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+
+# Portable default path resolution.
+# Explicit caller-supplied paths take precedence.
+if (-not $RunRoot -or -not $EvidenceRoot) {
+    $VerificationRoot = Join-Path ([System.IO.Path]::GetTempPath()) 'hacp-rust-verification'
+}
+
+if (-not $RunRoot) {
+    $RunRoot = Join-Path $VerificationRoot 'run'
+}
+
+if (-not $EvidenceRoot) {
+    $EvidenceRoot = Join-Path $VerificationRoot 'evidence'
+}
 
 Import-Module (Join-Path $PSScriptRoot 'WindowsVerification.Rust.Common.psm1') -Force
 
@@ -132,7 +146,9 @@ $overall = [ordered]@{
 # Presentation/evidence enrichment only. Does not alter matrix status, classification,
 # acceptance logic, or release/admission state.
 
-$SpecRepo = 'C:\Personal\GitHub\Dev\hacp-spec'
+$SidecarRepo = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..\..'))
+$WorkspaceRoot = Split-Path -Parent $SidecarRepo
+$SpecRepo = Join-Path $WorkspaceRoot 'hacp-spec'
 $verificationRoot = Join-Path $run.RunDir '02-verification'
 
 # ---- Rust Core: exact canonical 38-vector inventory + authoritative descriptions ----

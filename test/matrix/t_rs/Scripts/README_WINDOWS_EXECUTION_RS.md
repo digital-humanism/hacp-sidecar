@@ -31,13 +31,14 @@ PowerShell 5.1. Windows-native cmdlets only; no Unix utilities/WSL.
 - Windows x64; PowerShell 7+ (or 5.1).
 - Toolchain (inventory by `00`; nothing auto-installed): git, `rustc`/`cargo`/`rustup`
   (`stable-x86_64-pc-windows-msvc`), protoc, python, go.
-- Repositories: `SPEC_REPO = C:\Personal\GitHub\Dev\hacp-spec`, `SIDECAR_REPO = C:\Personal\GitHub\Dev\hacp-sidecar`.
-- External run/evidence (NOT inside git worktrees): `EvidenceRoot` (default `C:\Temp\hacp-rust-verification\evidence`),
-  `RunRoot` (default `C:\Temp\hacp-rust-verification\run`).
+- Default repository layout uses sibling clones under an arbitrary workspace root: `<workspace>\hacp-sidecar` and `<workspace>\hacp-spec`.
+- Repository paths are derived automatically from the repository-owned script location; explicit `-SpecRepo` / `-SidecarRepo` values override the defaults.
+- Runtime/evidence directories default to the operating system temporary directory under `hacp-rust-verification\{run,evidence}`.
+- Explicit `-EvidenceRoot` / `-RunRoot` values override the defaults.
 
 ## 2. Locate RS07 (PHASE 0A — artifact presence only, no copy/staging/commit)
 
-`RS07_budget_replay_verification.rs` is used directly from `C:\Personal\GitHub\Dev\hacp-sidecar\test\matrix\t_rs\RS07_budget_replay_verification.rs`.
+`RS07_budget_replay_verification.rs` is used directly from repository-owned `test\matrix\t_rs\RS07_budget_replay_verification.rs`.
 No copy into `hacp-spec` is performed. Phase 0B verifies artifact path / SHA-256 / status / identity.
 SHA-256 (`c25fb8fc…`) and records `git status`/`git check-ignore` (expected: **untracked, not staged**).
 Untracked RS07 is **sufficient** for verification — admission is a later, separate decision.
@@ -45,21 +46,17 @@ Untracked RS07 is **sufficient** for verification — admission is a later, sepa
 ## 3. Run order
 
 ```powershell
-Set-Location C:\Personal\GitHub\Dev\hacp-sidecar\test\matrix\t_rs\Scripts
+Set-Location <workspace>\hacp-sidecar\test\matrix\t_rs\Scripts
 
-.\00-Preflight.ps1 -SpecRepo "C:\Personal\GitHub\Dev\hacp-spec" -SidecarRepo "C:\Personal\GitHub\Dev\hacp-sidecar" `
-  -EvidenceRoot "C:\Temp\hacp-rust-verification\evidence" -RunRoot "C:\Temp\hacp-rust-verification\run"
+.\00-Preflight.ps1
 
-.\01-Prepare-Environment.ps1 -SpecRepo "C:\Personal\GitHub\Dev\hacp-spec" -SidecarRepo "C:\Personal\GitHub\Dev\hacp-sidecar" `
-  -EvidenceRoot "C:\Temp\hacp-rust-verification\evidence" -RunRoot "C:\Temp\hacp-rust-verification\run"
+.\01-Prepare-Environment.ps1
 
-.\02-Run-Verification.ps1 -SpecRepo "C:\Personal\GitHub\Dev\hacp-spec" -SidecarRepo "C:\Personal\GitHub\Dev\hacp-sidecar" `
-  -EvidenceRoot "C:\Temp\hacp-rust-verification\evidence" -RunRoot "C:\Temp\hacp-rust-verification\run"
+.\02-Run-Verification.ps1
 
-.\03-Postflight.ps1 -SpecRepo "C:\Personal\GitHub\Dev\hacp-spec" -SidecarRepo "C:\Personal\GitHub\Dev\hacp-sidecar" `
-  -EvidenceRoot "C:\Temp\hacp-rust-verification\evidence" -RunRoot "C:\Temp\hacp-rust-verification\run"
+.\03-Postflight.ps1
 
-.\04-Reconcile-Results.ps1 -EvidenceRoot "C:\Temp\hacp-rust-verification\evidence" -RunRoot "C:\Temp\hacp-rust-verification\run"
+.\04-Reconcile-Results.ps1
 ```
 
 All scripts accept explicit paths. `00` creates the run directory `<timestamp>_<run-id>\` (with
