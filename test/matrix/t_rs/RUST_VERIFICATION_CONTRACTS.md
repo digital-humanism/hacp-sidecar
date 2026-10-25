@@ -129,7 +129,7 @@ Basis: `B6_RUST_COVERAGE=EXACT` (see `RUST_MATRIX_RECONCILIATION.md` §B6). Dire
 - TOOLCHAIN: `cargo +stable-x86_64-pc-windows-msvc`
 - ENVIRONMENT CONTRACT: detached pin `3ea4adc…`; `CARGO_TARGET_DIR` outside repositories; clean tree; dev-deps already in crate (base64, ed25519_dalek, serde_json, sha2, hex — as in tracked tests)
 - ENVIRONMENT PREPARATION: Phase 0A locate existing RS07 artifact in `t_rs`; Phase 0B SHA/path/status/identity validation; toolchain
-- ENVIRONMENT PREFLIGHT: file present at target; SHA-256 matches package; `git check-ignore` confirms not ignored; `STAGED_FILES=0`
+- ENVIRONMENT PREFLIGHT: file present at target; canonical text SHA-256 matches the package identity after optional UTF-8 BOM removal and CRLF/CR -> LF normalization; `git check-ignore` confirms not ignored; `STAGED_FILES=0`
 - READINESS GATES: IDENTITY/TOOLCHAIN/ABI/WORKTREE
 - EXECUTION CONTRACT: `cargo +stable-x86_64-pc-windows-msvc test --locked --test budget_replay_verification`
 - EXACT WINDOWS COMMANDS:
@@ -143,7 +143,7 @@ Basis: `B6_RUST_COVERAGE=EXACT` (see `RUST_MATRIX_RECONCILIATION.md` §B6). Dire
 - EXPECTED RESULT: `3 passed, 0 failed` — `rs07_b9_budget_exhaustion_is_fail_closed`, `rs07_b9_replay_counter_at_limit_is_exhausted`, `rs07_b9_budget_not_exhausted_allows`
 - PASS CRITERIA: exhaustion → `DENY` + `BUDGET_EXHAUSTED`; under-limit → not budget-denied (`ALLOW`); SKIP=0
 - ENVIRONMENT RED: compilation (tracked API mismatch) / toolchain / pin | BEHAVIORAL RED: exhaustion not denied / under-limit incorrectly budget-denied
-- EVIDENCE OUTPUT: cargo output, RC, file SHA-256, P identity
+- EVIDENCE OUTPUT: cargo output, RC, canonical text SHA-256 for RS07 text inputs, P identity
 - CLEANUP: `target/` gitignored | POST-RUN GUARDS: P clean (production unchanged)
 - DEPENDENCIES: Phase 0A artifact presence + Phase 0B identity validation. Claim boundary: **B9 Rust facet = autonomy budget exhaustion only.** Source-backed Rust behavior: `envelope.autonomy_budget.max_actions` vs `context.current_action_count`; `current_action_count >= max_actions` → `DENY` + `BUDGET_EXHAUSTED`. Do not claim "Rust token replay verified".
 - RUST_TOKEN_REPLAY_SEMANTICS=NOT_IMPLEMENTED

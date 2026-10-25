@@ -501,10 +501,10 @@ function Invoke-Surface {
             # hacp-spec/hacp-rs is used read-only as a path dependency.
 
             $rs07ExpectedSha =
-                '0E3D8A8B8A380829ACCC62ED8948EBA97019802FE098644F8E1FA9A887F4C158'
+                'E97E732546F6D1688F0EEB464259F4F0B7B53C82BE3F37B97EEC776C94859FB2'
 
             $goldenExpectedSha =
-                'C9E84D6BACB0E52E95FC2B05A3636BA2409764589E735D8286E354E49265FB90'
+                'FA2CAE774C39F9C7C6174B956C55F62F43DA1CD507887E858342B34B3B62086C'
 
             $rs07Source =
                 Join-Path `
@@ -547,10 +547,10 @@ function Invoke-Surface {
             New-RvDirectory -Path $rs07OverlayVectors | Out-Null
 
             $rs07SourceIdentity =
-                Get-RvFileIdentity -Path $rs07Source
+                Get-RvCanonicalTextIdentity -Path $rs07Source
 
             $goldenSourceIdentity =
-                Get-RvFileIdentity -Path $goldenSource
+                Get-RvCanonicalTextIdentity -Path $goldenSource
 
             $rs07SourceOk =
                 $rs07SourceIdentity.Exists -and
@@ -673,10 +673,10 @@ hex = "0.4"
                 -Encoding utf8
 
             $rs07OverlayIdentity =
-                Get-RvFileIdentity -Path $rs07OverlayTest
+                Get-RvCanonicalTextIdentity -Path $rs07OverlayTest
 
             $goldenOverlayIdentity =
-                Get-RvFileIdentity -Path $goldenOverlay
+                Get-RvCanonicalTextIdentity -Path $goldenOverlay
 
             $overlayFilesOk =
                 (

@@ -71,7 +71,7 @@ Note: the RS01 procedure `rust-core-composition-reproduction.md` exists as an un
 ## 3. Applying the mapping (human-controlled)
 
 1. Locate exact file (RS PHASE 0A): repository-owned `test/matrix/t_rs/RS07_budget_replay_verification.rs`. Do not copy anything into `hacp-spec`; verify the RS01 procedure separately under Phase 0B.
-2. Verify SHA/path/status/identity (RS PHASE 0B): `Get-FileHash -Algorithm SHA256`, path existence and repository status; classification `PRESENT_MATCHING` / `MISSING` / `CONFLICT`; gate `STAGED_FILES=0`.
+2. Verify canonical text SHA-256/path/status/identity (RS PHASE 0B): remove an optional UTF-8 BOM, normalize CRLF/CR to LF, hash the resulting bytes with SHA-256, then verify path existence and repository status; classification `PRESENT_MATCHING` / `MISSING` / `CONFLICT`; gate `STAGED_FILES=0`.
 3. Execute `WINDOWS_EXECUTION_MANIFEST_RS.md` (RS PHASE 1–6).
 4. Human review (POST-RUN).
 5. Separate admission decision (PHASE 7 = PENDING HUMAN DECISION; never automatic).

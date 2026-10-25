@@ -81,9 +81,9 @@ $TMP = Join-Path $workRoot 'tmp'
 $cargoEnv = @{ CARGO_TARGET_DIR = $CARGO_TARGET }
 
 # ---- 1. RS07 artifact validation (read-only; no copy/transfer) ----
-$rs07Expected = '0e3d8a8b8a380829accc62ed8948eba97019802fe098644f8e1fa9a887f4c158'
+$rs07Expected = 'e97e732546f6d1688f0eeb464259f4f0b7b53c82be3f37b97eec776c94859fb2'
 $rs07Src = Join-Path (Split-Path -Parent $PSScriptRoot) 'RS07_budget_replay_verification.rs'
-$rs07 = Get-RvFileIdentity -Path $rs07Src
+$rs07 = Get-RvCanonicalTextIdentity -Path $rs07Src
 
 $rs07Class = if (-not $rs07.Exists) {
     'ABSENT'

@@ -223,6 +223,81 @@ function Get-RvFileIdentity {
     [pscustomobject]@{ Path=$Path; Exists=$exists; SizeBytes=$size; Sha256=$sha }
 }
 
+function Get-RvCanonicalTextIdentity {
+    [CmdletBinding()] param([Parameter(Mandatory)][string]$Path)
+
+    $exists = Test-Path -LiteralPath $Path -PathType Leaf
+
+    if (-not $exists) {
+        return [pscustomobject]@{
+            Path=$Path
+            Exists=$false
+            SizeBytes=$null
+            CanonicalSizeBytes=$null
+            Sha256=$null
+            Canonicalization='UTF8_BOM_REMOVED_CRLF_CR_TO_LF'
+        }
+    }
+
+    $raw = [System.IO.File]::ReadAllBytes($Path)
+    $start = 0
+
+    if (
+        $raw.Length -ge 3 -and
+        $raw[0] -eq 0xEF -and
+        $raw[1] -eq 0xBB -and
+        $raw[2] -eq 0xBF
+    ) {
+        $start = 3
+    }
+
+    $stream = [System.IO.MemoryStream]::new()
+
+    try {
+        for ($i = $start; $i -lt $raw.Length; $i++) {
+            $b = $raw[$i]
+
+            if ($b -eq 0x0D) {
+                if (
+                    ($i + 1) -lt $raw.Length -and
+                    $raw[$i + 1] -eq 0x0A
+                ) {
+                    $i++
+                }
+
+                $stream.WriteByte(0x0A)
+            }
+            else {
+                $stream.WriteByte($b)
+            }
+        }
+
+        $canonical = $stream.ToArray()
+    }
+    finally {
+        $stream.Dispose()
+    }
+
+    $hasher = [System.Security.Cryptography.SHA256]::Create()
+
+    try {
+        $digest = $hasher.ComputeHash($canonical)
+        $sha = [System.Convert]::ToHexString($digest).ToLowerInvariant()
+    }
+    finally {
+        $hasher.Dispose()
+    }
+
+    [pscustomobject]@{
+        Path=$Path
+        Exists=$true
+        SizeBytes=$raw.Length
+        CanonicalSizeBytes=$canonical.Length
+        Sha256=$sha
+        Canonicalization='UTF8_BOM_REMOVED_CRLF_CR_TO_LF'
+    }
+}
+
 function Get-RvGitIdentity {
     [CmdletBinding()] param([Parameter(Mandatory)][string]$RepoRoot)
     if (-not (Test-Path -LiteralPath $RepoRoot -PathType Container)) {
@@ -575,7 +650,7 @@ function New-RvResult {
 Export-ModuleMember -Function @(
     'Write-RvLog','Set-RvLogFile','New-RvDirectory','New-RvRunDirectory','Resolve-RvRunDir',
     'Write-RvJson','Write-RvJsonl','Write-RvCsv','Write-RvSummaryText',
-    'Get-RvFileIdentity','Get-RvGitIdentity','Get-RvGitPathState',
+    'Get-RvFileIdentity','Get-RvCanonicalTextIdentity','Get-RvGitIdentity','Get-RvGitPathState',
     'Test-RvPortState','Test-RvPortOwned','Test-RvPortAbsent',
     'Get-RvEnvSnapshot','Invoke-RvNative','Get-RvStdout','Invoke-RvLocalProbe',
     'Register-RvOwnedProcess','Get-RvOwnedProcesses','Stop-RvOwnedProcesses','New-RvResult','Get-RvWorkRoot','Get-RvHeaderValue',

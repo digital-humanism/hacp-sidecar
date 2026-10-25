@@ -35,7 +35,7 @@ RS PHASE 0A  LOCATE required Rust verification artifacts in t_rs only
              (explicitly: source artifact = test/matrix/t_rs/RS07_budget_replay_verification.rs in hacp-sidecar; no copying into hacp-spec;
               NO staging/commit)
 RS PHASE 0B  SHA/path/status/identity validation of each verification artifact
-             (Test-Path, Get-Item, Get-FileHash -Algorithm SHA256, git status --short -- <path>,
+             (Test-Path, Get-Item, canonical text SHA-256 with optional UTF-8 BOM removal and CRLF/CR -> LF normalization, git status --short -- <path>,
               git check-ignore -v -- <path>; gate: STAGED_FILES=0)
 
 RS PHASE 1   RS01  Rust Core            (A4; strict 13/38 + reconciliation 36/38+2)
@@ -100,7 +100,7 @@ Environment preparation (builds/installations are MUTATING and human-controlled)
 - ENTRYPOINT: `cargo +stable-x86_64-pc-windows-msvc test --locked --test budget_replay_verification`
 - EXECUTION_ORDER: RS PHASE 6 (after Phase 0A locate + Phase 0B validation) | EXPECTED_RESULT: `3 passed, 0 failed` (exhaustion→DENY+BUDGET_EXHAUSTED; boundary→exhausted; under-limit→ALLOW)
 - PASS_CRITERIA: all assertions PASS; SKIP=0 | ENVIRONMENT_RED: compile (tracked API mismatch)/toolchain | BEHAVIORAL_RED: exhaustion does not deny / under-limit incorrectly denied on budget grounds
-- EVIDENCE: cargo output, RC, file SHA-256, P identity | CLEANUP: `target/` gitignored | GUARDS: P clean (production unchanged) | DEPENDENCIES: RS07 artifact presence (Phase 0A) + identity validation (Phase 0B); admission is a separate human decision
+- EVIDENCE: cargo output, RC, canonical text SHA-256 for RS07 text inputs, P identity | CLEANUP: `target/` gitignored | GUARDS: P clean (production unchanged) | DEPENDENCIES: RS07 artifact presence (Phase 0A) + identity validation (Phase 0B); admission is a separate human decision
 - CLAIM_BOUNDARY: **B9 Rust facet = autonomy budget exhaustion only.** Rust semantics = `autonomy_budget.max_actions`/`current_action_count` → `BUDGET_EXHAUSTED`. Do not claim "Rust token replay verified". RUST_TOKEN_REPLAY_SEMANTICS=NOT_IMPLEMENTED; RUST_DECISION_TOKEN_MAX_USES=NOT_IMPLEMENTED; RUST_DEFAULT_MAX_USES_1=NOT_IMPLEMENTED. Go `max_uses`/replay semantics are NOT transferred. PHYSICAL FILE NAME != SEMANTIC CLAIM NAME (the file name contains "replay"; the authoritative claim is autonomy budget only). Do not conflate this with control-plane journal replay.
 
 ---
