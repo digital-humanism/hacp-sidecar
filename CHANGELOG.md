@@ -4,6 +4,16 @@ All notable changes to `hacp-sidecar` are documented in this file.
 
 The format is inspired by Keep a Changelog, and this project uses semantic versioning for repository releases.
 
+## [Unreleased]
+
+### Changed
+
+- Recorded the current HACP release composition as `1.1.1` — **pre-release candidate**, while preserving the historical standalone sidecar release line `v0.5.0`.
+- This documentary alignment does not authorize or perform HACP `1.1.1` stable release, merge, tag, publication, production activation, or any runtime/enforcement semantic change.
+- The Go sidecar remains the real upstream-forwarding enforcement runtime; the Rust HTTP verification surface remains authorization plus local response with no upstream-forwarding claim.
+
+---
+
 ## [0.5.0] - 2026-08-21
 
 Stable promotion of the `v0.5.0-rc.1` release candidate.
