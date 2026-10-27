@@ -32,6 +32,33 @@ The branch observed for `hacp-sidecar` during the reproduction was `admit/hacp-1
 
 **Dependency terminology:** *Executed* means a runner, CLI, or harness was actually invoked. *Input* means vectors, tests, source, or metadata consumed or checked. *Storage only* means that `hacp-sidecar` contains the copied shell script and its generated evidence, rather than supplying tested sidecar behavior.
 
+## Repository-local S06 test fixture
+
+`hacp-test-key.pem` is a deterministic, intentionally public, test-only
+Ed25519 conformance fixture. It is stored here for the separate
+`t_go` S06 external Python-to-Go sidecar verification procedure.
+
+Canonical provenance:
+`humanist-core/tests/hacp-test-key.pem`
+
+Repository-local execution source:
+`hacp-sidecar/test/gitcheck-reproduction/hacp-test-key.pem`
+
+Runtime copy:
+`<RunRoot>/keys/hacp-test-key.pem`
+
+SHA-256:
+`80C25A7B8450176CA940C19AA76D1136B4EA547A0FB37698AC535F0949457B80`
+
+The S06 preparation procedure verifies this SHA-256 before copying the
+fixture into its run directory. A missing or mismatching fixture causes
+`S06_ENVIRONMENT_RED`. The fixture is not a production credential,
+trust anchor, deployment signing key, or secret.
+
+The seven historical GitCheck shell scripts documented below do not
+consume this PEM fixture. Its addition does not alter their historical
+execution results or establish new conformance or release claims.
+
 ## Script-by-script repository dependency matrix
 
 | Script | Purpose / execution status | `hacp-spec` — inputs and code used | `hacp-sidecar` — items used | `humanist-core` |

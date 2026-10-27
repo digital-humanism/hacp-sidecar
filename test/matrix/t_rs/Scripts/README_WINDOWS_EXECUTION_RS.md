@@ -77,7 +77,7 @@ Hard gates are enforced in code (nonzero exit + BLOCKED result, no downstream ac
       != PASS  →  NO RS surface execution, exit nonzero.
 00 Preflight BLOCKED  → do NOT run 01   (mandatory toolchains git/rustc/cargo/rustup/protoc/python/go,
                                           port 18081 FREE, staged=0, RS07 package source PRESENT_MATCHING)
-01 branch gate (hard): active repositories used by t_rs must remain on `admit/hacp-1.1.1-pre-release`; no checkout/detach is performed by verification.
+01 branch gate (hard): active repositories used by t_rs must remain on `RELEASE/1.1.1`; no checkout/detach is performed by verification.
 01 Prepare BLOCKED    → do NOT run 02
 BEHAVIORAL_RED        → do NOT auto-repair; record only; never mutate production
 03 guard failure      → 04 marks EVIDENCE_INTEGRITY=FAIL and RUST_LOCAL_REPRODUCTION_VERIFIED=NO

@@ -331,7 +331,7 @@ TOTAL_PARSE_ERROR_COUNT=0
 Both public repositories are required to remain on:
 
 ```text
-admit/hacp-1.1.1-pre-release
+RELEASE/1.1.1
 ```
 
 `00-Preflight.ps1` records, for both `hacp-spec` and `hacp-sidecar`:
@@ -355,7 +355,7 @@ POSTFLIGHT_IDENTITY =
     AND SAME TREE
     AND SAME STATUS_SHORT
     AND SAME BRANCH
-    AND branch == admit/hacp-1.1.1-pre-release
+    AND branch == RELEASE/1.1.1
 ```
 
 A worktree that was already controlled-dirty at preflight is not required to become

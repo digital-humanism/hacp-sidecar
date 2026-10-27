@@ -110,7 +110,7 @@ $rs07Artifact = [ordered]@{
 Write-RvJson -Object $rs07Artifact -Path (Join-Path $OUT 'rs07-artifact.json')
 
 # ---- 2. Repository identity gate (read-only; no checkout/detach) ----
-$EXPECTED_BRANCH = 'admit/hacp-1.1.1-pre-release'
+$EXPECTED_BRANCH = 'RELEASE/1.1.1'
 
 $pIdentity = Get-RvGitIdentity -RepoRoot $SpecRepo
 $sIdentity = Get-RvGitIdentity -RepoRoot $SidecarRepo

@@ -306,11 +306,14 @@ $fixtureInventory += [pscustomobject]@{
 Write-WvJson -Object $fixtureInventory -Path (Join-Path $PREP_EVID 'fixture-inventory.json')
 
 # ---- S06 existing local test key placement ----
-$s06Source = Join-Path $CoreRoot 'tests\hacp-test-key.pem'
+$s06Source = Join-Path $SidecarRoot 'test\gitcheck-reproduction\hacp-test-key.pem'
 $s06Target = Join-Path $RunRoot 'keys\hacp-test-key.pem'
 
 if (-not (Test-Path -LiteralPath $s06Source -PathType Leaf)) {
-    throw 'S06_ENVIRONMENT_RED: local test key missing'
+    throw 'S06_ENVIRONMENT_RED: repository-local test fixture missing'
+}
+if ((Get-FileHash -LiteralPath $s06Source -Algorithm SHA256).Hash -ne '80C25A7B8450176CA940C19AA76D1136B4EA547A0FB37698AC535F0949457B80') {
+    throw 'S06_ENVIRONMENT_RED: test fixture SHA-256 mismatch'
 }
 
 [void](New-Item -ItemType Directory -Path (Split-Path $s06Target -Parent) -Force)

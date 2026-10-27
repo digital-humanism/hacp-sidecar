@@ -86,7 +86,7 @@ $sNow = Get-RvGitIdentity -RepoRoot $SidecarRepo
 $pBranchNow = (git -C $SpecRepo branch --show-current).Trim()
 $sBranchNow = (git -C $SidecarRepo branch --show-current).Trim()
 
-$expectedBranch = 'admit/hacp-1.1.1-pre-release'
+$expectedBranch = 'RELEASE/1.1.1'
 
 $gitGuard = [ordered]@{}
 

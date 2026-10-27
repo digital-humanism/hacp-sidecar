@@ -116,7 +116,7 @@ Write-RvJson -Object $toolchain -Path (Join-Path $OUT 'toolchain.json')
 # ---- 3. Git identity (P + S) ----
 $pIdentity = Get-RvGitIdentity -RepoRoot $SpecRepo
 $sIdentity = Get-RvGitIdentity -RepoRoot $SidecarRepo
-$EXPECTED_BRANCH = 'admit/hacp-1.1.1-pre-release'
+$EXPECTED_BRANCH = 'RELEASE/1.1.1'
 $pBranch = (git -C $SpecRepo branch --show-current).Trim()
 $sBranch = (git -C $SidecarRepo branch --show-current).Trim()
 $git = [ordered]@{
