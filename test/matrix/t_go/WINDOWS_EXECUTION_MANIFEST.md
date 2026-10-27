@@ -77,11 +77,11 @@ go test ./... -count=1
 
 # SURFACE C — Rust Core composition reproduction (A4)
 - MATRIX_ROWS: A4 | OWNER: P (SPEC-owned) + S (procedure doc) | LANG: Rust MSVC + Python 3.13 + protoc
-- REQUIRED_FILES: `docs/verification/rust-core-composition-reproduction.md` (prepared; see STATE below); P detached pin `3ea4adcbf6ef2548e41d340709945326026a73b6`
-- PREPARATION: clone P + `git checkout --detach 3ea4adc…`; `pip install -r harness\requirements.txt`; protoc/VC tools | PREFLIGHT: HEAD=pin; tree clean; toolchains
+- REQUIRED_FILES: `docs/verification/rust-core-composition-reproduction.md` (prepared; see STATE below); P resolved active HACP `1.1.1-rc.1` SPEC source `RC_SPEC_SOURCE`
+- PREPARATION: clone P + resolve active `1.1.1-rc.1` SPEC source + `git checkout --detach $RC_SPEC_SOURCE`; `pip install -r harness\requirements.txt`; protoc/VC tools | PREFLIGHT: HEAD=resolved `RC_SPEC_SOURCE`; tree clean; toolchains
 - ENTRYPOINT: `cargo build --locked --release --bin hacp-rs-runner` → `python .\harness\harness_runner.py --runner .\hacp-rs\target\release\hacp-rs-runner.exe --vectors-dir .\vectors --manifest .\harness\conformance_manifest.json --implementation-name hacp-rs --implementation-version 0.1.0-1.1.0 --output console` → raw witness `cargo test --locked --test json_ingress_v1_red -- --nocapture`
 - EXECUTION_ORDER: Phase 3 (after S05; before S04) | EXPECTED_RESULT: `BUILD_RC=0`; **`RESULTS: 13/38 passed` + `CORE_HARNESS_RC=1` — expected strict result**; reconciliation `36/38 direct + 2 adjudicated (CORE-INV1-002, CORE-RUNTIME-004)`; new regressions=0; witness `1 passed`
-- PASS_CRITERIA: exact strict count and exactly 2 adjudicated | ENVIRONMENT_RED: pin/toolchain/protoc | BEHAVIORAL_RED: outcome mismatch outside the two adjudicated cases; witness failure
+- PASS_CRITERIA: exact strict count and exactly 2 adjudicated | ENVIRONMENT_RED: RC_SPEC_SOURCE/toolchain/protoc | BEHAVIORAL_RED: outcome mismatch outside the two adjudicated cases; witness failure
 - EVIDENCE: console, RC, runner SHA-256, versions, identity | CLEANUP: harness terminates runner; target/ gitignored | GUARDS: clean clone
 - STATE (C3, source-backed, S mirror as of 2026-10-17): MIRROR_FILE_EXISTS=YES; MIRROR_TRACKED_STATE=UNTRACKED; PACKAGE_COPY_EXISTS=NO; WINDOWS_TRANSFER_REQUIRED=TO_BE_CONFIRMED_BY_PHASE_0B; CURRENT_ADMISSION_STATUS=PENDING
 

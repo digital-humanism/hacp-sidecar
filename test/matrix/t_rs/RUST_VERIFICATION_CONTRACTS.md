@@ -13,15 +13,15 @@ Hermes — PREPARE ONLY (does not execute cargo/go/pytest/runtime/HTTP/benchmark
 - SURFACE_ID: RS01 | MATRIX_ROWS: A4 | REPOSITORY_OWNER: P (SPEC-owned) + S (procedure doc)
 - EXACT SOURCE / TOOL PATHS: procedure `hacp-sidecar/docs/verification/rust-core-composition-reproduction.md`; runner `hacp-spec/hacp-rs/src/bin/hacp-rs-runner.rs` (target `hacp-rs/target/release/hacp-rs-runner.exe`); harness `hacp-spec/harness/harness_runner.py`; vectors `hacp-spec/vectors/`; manifest `hacp-spec/harness/conformance_manifest.json`
 - TOOLCHAIN: Rust `stable-x86_64-pc-windows-msvc`; protoc REQUIRED (`hacp-rs/build.rs:3`); Python 3.13.x + `harness/requirements.txt`; `Cargo.lock` (locked build)
-- ENVIRONMENT CONTRACT: P clone detached at `3ea4adcbf6ef2548e41d340709945326026a73b6`; `CARGO_TARGET_DIR` outside repositories; no services/ports; clean tree
-- ENVIRONMENT PREPARATION (MUTATING, human): `git checkout --detach 3ea4adc…`; `pip install -r harness\requirements.txt`; protoc/VC tools
-- ENVIRONMENT PREFLIGHT: `git -C <P> rev-parse HEAD`=pin; `git -C <P> status --short` empty; `rustc --version`/`cargo --version` stable-msvc; `protoc --version`; `python --version`
+- ENVIRONMENT CONTRACT: P clone detached at resolved active HACP `1.1.1-rc.1` SPEC source `RC_SPEC_SOURCE`; `CARGO_TARGET_DIR` outside repositories; no services/ports; clean tree
+- ENVIRONMENT PREPARATION (MUTATING, human): resolve active `1.1.1-rc.1` SPEC source → `git checkout --detach $RC_SPEC_SOURCE`; `pip install -r harness\requirements.txt`; protoc/VC tools
+- ENVIRONMENT PREFLIGHT: `git -C <P> rev-parse HEAD`=resolved `RC_SPEC_SOURCE`; `git -C <P> status --short` empty; `rustc --version`/`cargo --version` stable-msvc; `protoc --version`; `python --version`
 - READINESS GATES: IDENTITY/OS/TOOLCHAIN/ABI/CRYPTO(conformance keys)/FIXTURE(vectors+manifest)/ENV_VARS/WORKTREE → `ENVIRONMENT_READY=PASS`
 - EXECUTION CONTRACT (per C procedure): `cargo build --locked --release --bin hacp-rs-runner` → `python .\harness\harness_runner.py --runner .\hacp-rs\target\release\hacp-rs-runner.exe --vectors-dir .\vectors --manifest .\harness\conformance_manifest.json --implementation-name hacp-rs --implementation-version 0.1.0-1.1.0 --output console` → raw witness `cargo test --locked --test json_ingress_v1_red -- --nocapture`
 - EXACT WINDOWS COMMANDS: see C handoff (`ABC_WINDOWS_VERIFICATION_HANDOFF_RU_2026-10-17.md` §C) — commands reproduced verbatim
 - EXPECTED RESULT: `BUILD_RC=0`; **`RESULTS: 13/38 passed` + `CORE_HARNESS_RC=1` — expected strict result**; reconciliation `36/38 direct + 2 adjudicated (CORE-INV1-002, CORE-RUNTIME-004)`; new regressions=0; witness `1 passed`
 - PASS CRITERIA: exact strict count + exactly 2 adjudicated + reconciliation PASS
-- ENVIRONMENT RED: pin/toolchain/protoc/deps | BEHAVIORAL RED: outcome mismatch outside the two adjudicated cases; witness failure
+- ENVIRONMENT RED: RC_SPEC_SOURCE/toolchain/protoc/deps | BEHAVIORAL RED: outcome mismatch outside the two adjudicated cases; witness failure
 - EVIDENCE OUTPUT: console (strict run + witness), RC, runner SHA-256, toolchain versions, P identity (HEAD/tree)
 - CLEANUP: harness terminates runner; `CARGO_TARGET_DIR` gitignored | POST-RUN GUARDS: P clone clean; P_HEAD/P_TREE recorded
 - DEPENDENCIES: Phase 0B identity; RS01 does NOT depend on Go surfaces
@@ -33,7 +33,7 @@ Hermes — PREPARE ONLY (does not execute cargo/go/pytest/runtime/HTTP/benchmark
 - SURFACE_ID: RS02 | MATRIX_ROWS: A8 | REPOSITORY_OWNER: P
 - EXACT SOURCE / TOOL PATHS: runner `hacp-rs/target/release/hacp-rs-runner.exe` (built in RS01); harness `hacp-spec/harness/enforcement_v2_runner.py`; vectors `hacp-spec/vectors/enforcement-v2/`
 - TOOLCHAIN: identical to RS01
-- ENVIRONMENT CONTRACT: same P environment (detached pin); runner protocol is stdin/stdout JSON (`harness/runner_protocol.md`)
+- ENVIRONMENT CONTRACT: same P environment (resolved `RC_SPEC_SOURCE`); runner protocol is stdin/stdout JSON (`harness/runner_protocol.md`)
 - ENVIRONMENT PREPARATION: runner already built in RS01 (same `CARGO_TARGET_DIR`)
 - ENVIRONMENT PREFLIGHT: runner binary exists; SHA-256 recorded; vectors/enforcement-v2 present
 - READINESS GATES: same as RS01 + runner identity
@@ -41,7 +41,7 @@ Hermes — PREPARE ONLY (does not execute cargo/go/pytest/runtime/HTTP/benchmark
 - EXACT WINDOWS COMMANDS: see `CONTRACTS_S01_S12.md` §S04 (verbatim command)
 - EXPECTED RESULT: `RESULTS: 55/55 passed`
 - PASS CRITERIA: exact `55/55` count; separate verdict family
-- ENVIRONMENT RED: toolchain/protoc/pin/runner | BEHAVIORAL RED: any HC2 mismatch
+- ENVIRONMENT RED: toolchain/protoc/RC_SPEC_SOURCE/runner | BEHAVIORAL RED: any HC2 mismatch
 - EVIDENCE OUTPUT: console, RC, SHA-256 runner, P identity
 - CLEANUP: runner terminated by harness | POST-RUN GUARDS: clean clone
 - DEPENDENCIES: RS01 (runner build). Claim boundary: **Rust HC2 ≠ Rust Core** (36/38+2 must not be combined with 55/55)
@@ -53,9 +53,9 @@ Hermes — PREPARE ONLY (does not execute cargo/go/pytest/runtime/HTTP/benchmark
 - SURFACE_ID: RS03 | MATRIX_ROWS: B18 (+B6 coverage) | REPOSITORY_OWNER: P (`hacp-spec/hacp-rs`)
 - EXACT SOURCE / TOOL PATHS: `hacp-spec/hacp-rs/` (crate `hacp_rs`, 13 tracked test files in `tests/`, `Cargo.lock`)
 - TOOLCHAIN: `cargo +stable-x86_64-pc-windows-msvc` (MSVC ABI), protoc (build.rs)
-- ENVIRONMENT CONTRACT: detached pin `3ea4adc…`; `CARGO_TARGET_DIR` outside repositories; clean tree; network not required (`--locked`)
+- ENVIRONMENT CONTRACT: resolved active HACP `1.1.1-rc.1` SPEC source `RC_SPEC_SOURCE`; `CARGO_TARGET_DIR` outside repositories; clean tree; network not required (`--locked`)
 - ENVIRONMENT PREPARATION: toolchain + protoc
-- ENVIRONMENT PREFLIGHT: `cargo --version`; `rustc --version`; `protoc --version`; pin-check P
+- ENVIRONMENT PREFLIGHT: `cargo --version`; `rustc --version`; `protoc --version`; RC SPEC source identity check P
 - READINESS GATES: IDENTITY/TOOLCHAIN/ABI/WORKTREE
 - EXECUTION CONTRACT: `cargo +stable-x86_64-pc-windows-msvc test --locked` (from `hacp-rs`)
 - EXACT WINDOWS COMMANDS:
@@ -127,7 +127,7 @@ Basis: `B6_RUST_COVERAGE=EXACT` (see `RUST_MATRIX_RECONCILIATION.md` §B6). Dire
 - SURFACE_ID: RS07 | MATRIX_ROWS: B9 | REPOSITORY_OWNER: P (`hacp-spec/hacp-rs`)
 - EXACT SOURCE / TOOL PATHS: new verification-only test `test/matrix/t_rs/RS07_budget_replay_verification.rs` in the `hacp-sidecar` repository → target `hacp-spec/hacp-rs/tests/budget_replay_verification.rs`; production `hacp-rs/src/evaluate.rs` (Step 9, NOT modified); golden vector `hacp-spec/vectors/core_inv1_001_golden.json`
 - TOOLCHAIN: `cargo +stable-x86_64-pc-windows-msvc`
-- ENVIRONMENT CONTRACT: detached pin `3ea4adc…`; `CARGO_TARGET_DIR` outside repositories; clean tree; dev-deps already in crate (base64, ed25519_dalek, serde_json, sha2, hex — as in tracked tests)
+- ENVIRONMENT CONTRACT: resolved active HACP `1.1.1-rc.1` SPEC source `RC_SPEC_SOURCE`; `CARGO_TARGET_DIR` outside repositories; clean tree; dev-deps already in crate (base64, ed25519_dalek, serde_json, sha2, hex — as in tracked tests)
 - ENVIRONMENT PREPARATION: Phase 0A locate existing RS07 artifact in `t_rs`; Phase 0B SHA/path/status/identity validation; toolchain
 - ENVIRONMENT PREFLIGHT: file present at target; canonical text SHA-256 matches the package identity after optional UTF-8 BOM removal and CRLF/CR -> LF normalization; `git check-ignore` confirms not ignored; `STAGED_FILES=0`
 - READINESS GATES: IDENTITY/TOOLCHAIN/ABI/WORKTREE

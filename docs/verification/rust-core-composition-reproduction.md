@@ -17,26 +17,27 @@ It does not modify the HACP protocol, normative semantics, release composition, 
 
 ---
 
-## Immutable Composition Binding
+## Release Candidate Binding
 
-The Rust Core result is reproduced against the exact immutable HACP specification identity bound by the HACP 1.1.1 composition:
+The Rust Core result is reproduced against the active HACP 1.1.1 release candidate:
 
 ```text
 HACP_RELEASE=1.1.1
-HACP_COMPOSITION_ID=HACP-1.1.1-spec-3ea4adc-sidecar-1bc10ac
-
-HACP_SPEC_COMMIT=
-3ea4adcbf6ef2548e41d340709945326026a73b6
-
-SIDECAR_IMPLEMENTATION_COMMIT=
-1bc10acbe79620a165cee573c5b260cd8639280f
+HACP_RELEASE_CANDIDATE=1.1.1-rc.1
+FINAL_RELEASE_TAG=v1.1.1
 ```
 
 The Rust Core verification described here is SPEC-owned.
 
 The sidecar repository records this reproduction because the result is part of the HACP 1.1.1 runtime/release evidence chain.
 
-A floating branch tip such as `main`, `latest`, or the current tip of an admission branch must not replace the immutable specification commit above.
+For each verification run, the active release-candidate SPEC source is resolved
+according to the separate release-candidate representation decision.
+
+The resulting concrete Git commit is recorded as `RC_SPEC_SOURCE` evidence for
+that run. It is not a manually maintained cross-repository composition binding.
+
+A floating branch tip such as `main` or `latest` is not a final release identity.
 
 ---
 
@@ -48,11 +49,14 @@ Public specification repository:
 https://github.com/digital-humanism/hacp-spec.git
 ```
 
-Required immutable source identity:
+Required release-candidate source identity:
 
 ```text
-3ea4adcbf6ef2548e41d340709945326026a73b6
+RC_SPEC_SOURCE=<resolved active 1.1.1-rc.1 SPEC commit>
 ```
+
+`RC_SPEC_SOURCE` is derived for the verification run according to the
+release-candidate representation decision and recorded as evidence.
 
 All paths in this document are repository-relative.
 
@@ -99,10 +103,11 @@ Enter the clone:
 Set-Location hacp-spec
 ```
 
-Materialize the exact composition identity:
+Materialize the resolved release-candidate source identity:
 
 ```powershell
-git checkout --detach 3ea4adcbf6ef2548e41d340709945326026a73b6
+$RC_SPEC_SOURCE = '<resolved active 1.1.1-rc.1 SPEC commit>'
+git checkout --detach $RC_SPEC_SOURCE
 ```
 
 Verify:
@@ -116,13 +121,13 @@ Required result:
 
 ```text
 HEAD:
-3ea4adcbf6ef2548e41d340709945326026a73b6
+<resolved active 1.1.1-rc.1 SPEC commit>
 
 working tree:
 clean
 ```
 
-Do not substitute the current tip of `admit/hacp-rs` for the immutable commit.
+Do not substitute an unrelated branch tip for the resolved active release-candidate source.
 
 ---
 
@@ -384,8 +389,8 @@ This witness confirms that the duplicate-member condition reaches the Rust runne
 The recorded immutable-composition reproduction established:
 
 ```text
-SPEC_IDENTITY=
-3ea4adcbf6ef2548e41d340709945326026a73b6
+RC_SPEC_SOURCE=
+<resolved active 1.1.1-rc.1 SPEC commit>
 
 RUST_RUNNER_BUILD=PASS
 
