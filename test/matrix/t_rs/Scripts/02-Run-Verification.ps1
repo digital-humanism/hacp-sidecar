@@ -103,109 +103,506 @@ function Invoke-Surface {
 
     switch ($Id) {
         'RS01' {
-            # RS01 does not re-run the historical strict Core harness.
-            #
-            # The current admission model inherits the already-proven Rust Core verdict:
-            #   36/38 direct + 2 adjudicated
-            #   adjudicated: CORE-INV1-002, CORE-RUNTIME-004
-            #
-            # This surface verifies continuity of the exact proven Rust source identity
-            # and independently re-runs the CORE-INV5-006 raw-wire duplicate-key witness.
-            # It must never manufacture 36/38 from the historical 13/38 strict harness.
+            # Fresh execution of current Rust Core Family A.
+            # 37 ordinary vectors plus CORE-INV5-006 raw-wire witness.
+            # Test implementation is reused from t_go Surface C.
+            # Historical source identity is recorded, not used as a verdict gate.
 
-            $expectedPHead =
-                '03885b2b062905072040dc245c3d25d283c249c4'
+            $corePython = @"
+import hashlib
+import json
+import subprocess
+import sys
+from pathlib import Path
 
-            $expectedPTree =
-                'b8341f7c114a4c51ea45d04352ee7ebdcc462e9a'
+root = Path(sys.argv[1])
+runner = Path(sys.argv[2])
+evidence = Path(sys.argv[3])
 
-            $expectedEvaluateSha256 =
-                '74580DE3A9E345B64E2548EDD07DDB4A4D7058C2F847CF0EBB9D8468C23FE041'
+vectors = root / "vectors"
 
-            $evaluatePath = Join-Path $SpecRepo 'hacp-rs\src\evaluate.rs'
+SPECIAL_RAW_FILE = "core_inv5_006_negative.json"
+AUXILIARY_EXCLUDE = {"e5c6_binding_fixture.json"}
 
-            $actualEvaluateSha256 = $null
-            if (Test-Path -LiteralPath $evaluatePath) {
-                $actualEvaluateSha256 =
-                    (Get-FileHash -LiteralPath $evaluatePath -Algorithm SHA256).Hash
+EXPECTED_ADJUDICATED = {
+    "CORE-INV1-002",
+    "CORE-RUNTIME-004",
+}
+
+
+class DuplicateKeyError(ValueError):
+    pass
+
+
+def reject_duplicates(pairs):
+    out = {}
+    for key, value in pairs:
+        if key in out:
+            raise DuplicateKeyError(key)
+        out[key] = value
+    return out
+
+
+def strict_load(path):
+    return json.loads(
+        path.read_text(encoding="utf-8"),
+        object_pairs_hook=reject_duplicates,
+    )
+
+
+def title_of(vector):
+    return (
+        vector.get("description")
+        or vector.get("name")
+        or vector.get("title")
+        or ""
+    )
+
+
+def normal_request(vector):
+    return json.dumps(
+        {
+            "protocol_version": "1",
+            "operation": "evaluate",
+            "vector_id": vector["test_id"],
+            "input": vector["inputs"],
+            "policy_context": vector.get("policy_context", {}),
+        },
+        separators=(",", ":"),
+    )
+
+
+def evaluate(request):
+    process = subprocess.run(
+        [str(runner)],
+        input=request + "\n",
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+
+    if process.returncode != 0:
+        raise RuntimeError(
+            f"runner exit={process.returncode}; stderr={process.stderr.strip()}"
+        )
+
+    lines = [line for line in process.stdout.splitlines() if line.strip()]
+
+    if len(lines) != 1:
+        raise RuntimeError(
+            f"runner stdout line count={len(lines)}; stdout={process.stdout!r}"
+        )
+
+    try:
+        return json.loads(lines[0])
+    except Exception as exc:
+        raise RuntimeError(f"invalid runner JSON: {exc}") from exc
+
+
+def extract_top_level_raw_value(raw_text, key):
+    decoder = json.JSONDecoder()
+    i = 0
+    n = len(raw_text)
+
+    def ws(pos):
+        while pos < n and raw_text[pos].isspace():
+            pos += 1
+        return pos
+
+    i = ws(i)
+    assert raw_text[i] == "{"
+    i += 1
+
+    while True:
+        i = ws(i)
+
+        if raw_text[i] == "}":
+            break
+
+        current_key, end = decoder.raw_decode(raw_text, i)
+        i = ws(end)
+
+        assert raw_text[i] == ":"
+        i += 1
+        i = ws(i)
+
+        start = i
+
+        if raw_text[i] in "{[":
+            stack = [raw_text[i]]
+            i += 1
+            in_string = False
+            escaped = False
+
+            while stack:
+                char = raw_text[i]
+
+                if in_string:
+                    if escaped:
+                        escaped = False
+                    elif char == "\\":
+                        escaped = True
+                    elif char == '"':
+                        in_string = False
+                else:
+                    if char == '"':
+                        in_string = True
+                    elif char in "{[":
+                        stack.append(char)
+                    elif char == "}":
+                        assert stack[-1] == "{"
+                        stack.pop()
+                    elif char == "]":
+                        assert stack[-1] == "["
+                        stack.pop()
+
+                i += 1
+
+            end = i
+        else:
+            _, end = decoder.raw_decode(raw_text, i)
+            i = end
+
+        if current_key == key:
+            return raw_text[start:end]
+
+        i = ws(i)
+
+        if raw_text[i] == ",":
+            i += 1
+
+    raise KeyError(key)
+
+
+def minify_raw_json(raw_text):
+    out = []
+    in_string = False
+    escaped = False
+
+    for char in raw_text:
+        if in_string:
+            out.append(char)
+
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        else:
+            if char == '"':
+                in_string = True
+                out.append(char)
+            elif char in " \t\r\n":
+                continue
+            else:
+                out.append(char)
+
+    return "".join(out)
+
+
+def execute_raw_inv5_006(path):
+    raw = path.read_text(encoding="utf-8")
+
+    vector = json.loads(raw)
+
+    raw_inputs = minify_raw_json(
+        extract_top_level_raw_value(raw, "inputs")
+    )
+
+    raw_policy = minify_raw_json(
+        extract_top_level_raw_value(raw, "policy_context")
+    )
+
+    request = (
+        '{"protocol_version":"1",'
+        '"operation":"evaluate",'
+        f'"vector_id":{json.dumps(vector["test_id"])},'
+        f'"input":{raw_inputs},'
+        f'"policy_context":{raw_policy}'
+        '}'
+    )
+
+    if "\n" in request or "\r" in request:
+        raise RuntimeError("CORE-INV5-006 request is not single-line")
+
+    if request.count('"verb":"read"') < 1:
+        raise RuntimeError("CORE-INV5-006 missing raw verb=read member")
+
+    if request.count('"verb":"delete"') < 1:
+        raise RuntimeError("CORE-INV5-006 missing raw verb=delete member")
+
+    request_bytes = (request + "\n").encode("utf-8")
+
+    request_path = evidence / "core_inv5_006_request.jsonl"
+    stdout_path = evidence / "core_inv5_006.stdout"
+    stderr_path = evidence / "core_inv5_006.stderr"
+
+    request_path.write_bytes(request_bytes)
+
+    process = subprocess.run(
+        [str(runner)],
+        input=request + "\n",
+        text=True,
+        capture_output=True,
+        timeout=10,
+    )
+
+    stdout_path.write_text(process.stdout, encoding="utf-8")
+    stderr_path.write_text(process.stderr, encoding="utf-8")
+
+    if process.returncode != 0:
+        raise RuntimeError(
+            f"CORE-INV5-006 runner exit={process.returncode}"
+        )
+
+    if process.stderr:
+        raise RuntimeError(
+            f"CORE-INV5-006 stderr not empty: {process.stderr!r}"
+        )
+
+    lines = [
+        line
+        for line in process.stdout.splitlines()
+        if line.strip()
+    ]
+
+    if len(lines) != 1:
+        raise RuntimeError(
+            f"CORE-INV5-006 response line count={len(lines)}"
+        )
+
+    response = json.loads(lines[0])
+
+    decision_ok = response.get("decision") == "DENY"
+    reasons_ok = response.get("reason_codes") == ["INVALID_ACTION"]
+
+    if not decision_ok or not reasons_ok:
+        raise RuntimeError(
+            "CORE-INV5-006 expected DENY / INVALID_ACTION; "
+            f"actual={response!r}"
+        )
+
+    sha256 = hashlib.sha256(request_bytes).hexdigest()
+
+    return vector, response, sha256
+
+
+paths = [
+    path
+    for path in sorted(vectors.glob("*.json"))
+    if path.name not in AUXILIARY_EXCLUDE
+]
+
+if len(paths) != 38:
+    print(f"FATAL: Core inventory expected 38, got {len(paths)}")
+    raise SystemExit(2)
+
+
+print("=" * 60)
+print("HACP 1.1.1 Rust Core Conformance - Family A")
+print("Protocol version: 1")
+print(f"Runner: {runner}")
+print("Spec: HACP-Core")
+print("Contract: decision-level")
+print("=" * 60)
+print()
+print(f"Vector source: {vectors}")
+print("Inventory: Core-38")
+print()
+
+results = []
+raw_sha = None
+
+for path in paths:
+    try:
+        if path.name == SPECIAL_RAW_FILE:
+            vector, response, raw_sha = execute_raw_inv5_006(path)
+            expected = vector["expected"]["outcome"]
+            actual = response.get("decision")
+
+            passed = (
+                response.get("decision") == "DENY"
+                and response.get("reason_codes") == ["INVALID_ACTION"]
+            )
+
+            raw_wire = True
+        else:
+            vector = strict_load(path)
+            request = normal_request(vector)
+            response = evaluate(request)
+
+            expected = vector["expected"]["outcome"]
+            actual = response.get("decision")
+            passed = actual == expected
+            raw_wire = False
+
+    except Exception as exc:
+        print(f"[ERROR] {path.name}: {exc}")
+        raise SystemExit(3)
+
+    test_id = vector["test_id"]
+    description = title_of(vector)
+
+    status = "PASS" if passed else "FAIL"
+
+    if description:
+        print(f"[{status}] {test_id}: {description}")
+    else:
+        print(f"[{status}] {test_id}")
+
+    if raw_wire:
+        print("       RAW-WIRE: DENY / INVALID_ACTION")
+        print(f"       Request SHA-256: {raw_sha}")
+
+    elif not passed:
+        print(
+            "       Details: "
+            + repr(
+                {
+                    "outcome_mismatch": {
+                        "expected": expected,
+                        "actual": actual,
+                    }
+                }
+            )
+        )
+
+        if test_id in EXPECTED_ADJUDICATED:
+            print("       ADJUDICATED: CHECKPOINT-vs-DENY")
+
+    results.append(
+        {
+            "test_id": test_id,
+            "expected": expected,
+            "actual": actual,
+            "passed": passed,
+            "raw_wire": raw_wire,
+        }
+    )
+
+
+direct_pass = sum(1 for result in results if result["passed"])
+
+failures = [
+    result
+    for result in results
+    if not result["passed"]
+]
+
+failure_ids = {
+    result["test_id"]
+    for result in failures
+}
+
+adjudicated_shape_ok = all(
+    result["expected"] == "CHECKPOINT"
+    and result["actual"] == "DENY"
+    for result in failures
+)
+
+raw_result = next(
+    (
+        result
+        for result in results
+        if result["test_id"] == "CORE-INV5-006"
+    ),
+    None,
+)
+
+raw_ok = (
+    raw_result is not None
+    and raw_result["passed"]
+    and raw_result["raw_wire"]
+)
+
+
+print()
+print("=" * 60)
+print(f"DIRECT RESULTS: {direct_pass}/38 passed")
+print(f"ADJUDICATED: {len(failures)}")
+
+print("=" * 60)
+
+
+if direct_pass != 36:
+    print(f"FATAL: expected 36 direct PASS, got {direct_pass}")
+    raise SystemExit(4)
+
+if failure_ids != EXPECTED_ADJUDICATED:
+    print(
+        "FATAL: adjudicated ID set mismatch: "
+        + ",".join(sorted(failure_ids))
+    )
+    raise SystemExit(4)
+
+if not adjudicated_shape_ok:
+    print("FATAL: adjudicated outcome shape mismatch")
+    raise SystemExit(4)
+
+if not raw_ok:
+    print("FATAL: CORE-INV5-006 raw-wire witness mismatch")
+    raise SystemExit(4)
+
+print("FINAL ACCOUNTING: 36 direct + 2 adjudicated")
+raise SystemExit(0)
+"@
+
+            $corePy = Join-Path $evidence 'rust-core-family-a.py'
+
+            [System.IO.File]::WriteAllText(
+                $corePy,
+                $corePython,
+                [System.Text.UTF8Encoding]::new($false)
+            )
+
+            $r = Invoke-RvNative `
+                -FilePath 'python' `
+                -ArgumentList @(
+                    $corePy,
+                    $SpecRepo,
+                    $RUNNER,
+                    $evidence
+                ) `
+                -WorkDir $SpecRepo `
+                -StepId 'RS01-core-family-a' `
+                -SurfaceId 'RS01' `
+                -EvidenceDir $evidence
+
+            $exitCodes['RS01_CORE_FAMILY_A_RC'] = $r.ProcessRc
+            $output = Get-RvStdout -Run $r
+
+            $required = @(
+                'DIRECT RESULTS: 36/38 passed',
+                'ADJUDICATED: 2',
+                'FINAL ACCOUNTING: 36 direct + 2 adjudicated',
+                '[FAIL] CORE-INV1-002:',
+                '[FAIL] CORE-RUNTIME-004:',
+                '[PASS] CORE-INV5-006:',
+                'RAW-WIRE: DENY / INVALID_ACTION'
+            )
+
+            $markersPass = $true
+            foreach ($marker in $required) {
+                if (-not $output.Contains($marker)) {
+                    $markersPass = $false
+                }
             }
 
-            $identityPass =
-                ($P_HEAD -eq $expectedPHead) -and
-                ($P_TREE -eq $expectedPTree) -and
-                ($actualEvaluateSha256 -eq $expectedEvaluateSha256)
-
-            $identityEvidence = Join-Path $evidence 'RS01-proven-baseline-identity.json'
-
-            Write-RvJson -Object @{
-                MODEL = 'INHERITED_PROVEN_RUST_CORE_BASELINE'
-                STRICT_HARNESS_RERUN = 'NO'
-                PROVEN_CORE_VERDICT = '36/38 direct + 2 adjudicated'
-                ADJUDICATED = @(
-                    'CORE-INV1-002',
-                    'CORE-RUNTIME-004'
-                )
-                EXPECTED_P_HEAD = $expectedPHead
-                ACTUAL_P_HEAD = $P_HEAD
-                EXPECTED_P_TREE = $expectedPTree
-                ACTUAL_P_TREE = $P_TREE
-                EVALUATE_PATH = $evaluatePath
-                EXPECTED_EVALUATE_SHA256 = $expectedEvaluateSha256
-                ACTUAL_EVALUATE_SHA256 = $actualEvaluateSha256
-                IDENTITY_MATCH = $identityPass
-            } -Path $identityEvidence
-
-            $witness = Invoke-RvNative `
-                -FilePath 'cargo' `
-                -ArgumentList @(
-                    '+stable-x86_64-pc-windows-msvc',
-                    'test',
-                    '--locked',
-                    '--test',
-                    'json_ingress_v1_red',
-                    '--',
-                    '--nocapture'
-                ) `
-                -WorkDir (Join-Path $SpecRepo 'hacp-rs') `
-                -StepId 'RS01-witness' `
-                -SurfaceId 'RS01' `
-                -EvidenceDir $evidence `
-                -ExtraEnv $cargoEnv
-
-            $exitCodes['RS01_WITNESS_RC'] = $witness.ProcessRc
-
-            $witnessOut = Get-RvStdout -Run $witness
-
-            $witnessPass =
-                ($witness.ProcessRc -eq 0) -and
-                ($witnessOut -match 'json_ingress_v1_must_reject_duplicate_proposed_action_key') -and
-                ($witnessOut -match '1 passed') -and
-                ($witnessOut -match '0 failed')
-
-            if (-not $identityPass) {
+            if ($null -eq $r.ProcessRc) {
                 $cls = $RV_CLASS.ENVIRONMENT_RED
                 $envRed = $true
-                $observed =
-                    'Proven Rust Core baseline identity mismatch; no behavioral verdict attempted'
+                $observed = 'Rust Core Family A execution unavailable'
             }
-            elseif (-not $witnessPass) {
-                if ($witness.ProcessRc -eq $null) {
-                    $cls = $RV_CLASS.ENVIRONMENT_RED
-                    $envRed = $true
-                    $observed =
-                        'CORE-INV5-006 raw-wire witness could not be executed'
-                }
-                else {
-                    $cls = $RV_CLASS.BEHAVIORAL_RED
-                    $behRed = $true
-                    $observed =
-                        'Proven Rust Core baseline identity matched, but CORE-INV5-006 raw-wire witness regressed'
-                }
+            elseif ($r.ProcessRc -eq 0 -and $markersPass) {
+                $cls = $RV_CLASS.PASS
+                $observed = 'Fresh Core-38: 35 ordinary direct + 1 raw-wire direct + 2 adjudicated'
+                Write-RvLog -Message 'RS01 Rust Core result: 36 direct + 2 adjudicated'
             }
             else {
-                $cls = $RV_CLASS.PASS
-                $observed =
-                    'Proven Rust Core baseline identity matched: 36/38 direct + 2 adjudicated inherited; CORE-INV5-006 raw-wire witness PASS; historical strict harness not re-run'
+                $cls = $RV_CLASS.BEHAVIORAL_RED
+                $behRed = $true
+                $observed = "Rust Core Family A failed: RC=$($r.ProcessRc); markers=$markersPass"
             }
 
             Write-SurfaceResult `
@@ -213,16 +610,16 @@ function Invoke-Surface {
                 -Rows @('A4') `
                 -ExitCodes $exitCodes `
                 -Classification $cls `
-                -Expected 'Exact proven Rust Core source identity; inherited verdict 36/38 direct + 2 adjudicated (CORE-INV1-002, CORE-RUNTIME-004); CORE-INV5-006 raw-wire witness PASS; no historical strict harness rerun' `
+                -Expected 'Fresh execution: 35/37 ordinary direct + 2 adjudicated; CORE-INV5-006 raw-wire PASS; 36 direct + 2 adjudicated total' `
                 -Observed $observed `
                 -Evidence @(
-                    $identityEvidence,
-                    $witness.StdOutPath
+                    $corePy,
+                    $r.StdOutPath,
+                    $r.StdErrPath
                 ) `
                 -EnvRed $envRed `
                 -BehRed $behRed
         }
-
         'RS02' {
             $r = Invoke-RvNative -FilePath 'python' -ArgumentList @((Join-Path $SpecRepo 'harness\enforcement_v2_runner.py'),'--runner',$RUNNER,'--vectors-dir',(Join-Path $SpecRepo 'vectors\enforcement-v2'),'--implementation-name','hacp-rs','--output','console') -WorkDir (Join-Path $SpecRepo 'harness') -StepId 'RS02-hc2' -SurfaceId 'RS02' -EvidenceDir $evidence
             $exitCodes['RS02_HARNESS_RC'] = $r.ProcessRc
