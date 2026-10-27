@@ -16,9 +16,9 @@ Common rules for all S01–S12:
 
 # S01 — Go conformance (A1 Core-38 + A5 HC2-55)
 
-ENVIRONMENT CONTRACT: REPO=P (`hacp-spec`, detached pin `3ea4adcbf6ef2548e41d340709945326026a73b6` for Core; HC2 uses the same pin), LANG=Go runner (built from `hacp-go/` or using `hacp-conformance-runner.exe` from S — see EXEC), Python 3.13.x + `harness\requirements.txt`; no services/ports/fixtures; `CARGO_TARGET_DIR` n/a; proxy variables do not affect execution (no HTTP traffic); clean tree before/after.
-ENVIRONMENT PREPARATION (MUTATING, human): clone P → `git checkout --detach 3ea4adc…`; `pip install -r harness\requirements.txt`; build Go CLI (`go build -o <run>\hacp-go.exe .` in `hacp-go`; interface `hacp-go evaluate --vector <path>` — `hacp-go/main.go`).
-ENVIRONMENT PREFLIGHT: `git rev-parse HEAD` = pin; `git status --short` empty; `go version` ≥ 1.26.x; `python --version` ≥ 3.13; `Get-Command go,python`.
+ENVIRONMENT CONTRACT: REPO=P (`hacp-spec`, resolved active HACP `1.1.1-rc.1` SPEC source `RC_SPEC_SOURCE` for Core; HC2 uses the same resolved source), LANG=Go runner (built from `hacp-go/` or using `hacp-conformance-runner.exe` from S — see EXEC), Python 3.13.x + `harness\requirements.txt`; no services/ports/fixtures; `CARGO_TARGET_DIR` n/a; proxy variables do not affect execution (no HTTP traffic); clean tree before/after.
+ENVIRONMENT PREPARATION (MUTATING, human): clone P → resolve active `1.1.1-rc.1` SPEC source → `git checkout --detach $RC_SPEC_SOURCE`; `pip install -r harness\requirements.txt`; build Go CLI (`go build -o <run>\hacp-go.exe .` in `hacp-go`; interface `hacp-go evaluate --vector <path>` — `hacp-go/main.go`).
+ENVIRONMENT PREFLIGHT: `git rev-parse HEAD` = resolved `RC_SPEC_SOURCE`; `git status --short` empty; `go version` ≥ 1.26.x; `python --version` ≥ 3.13; `Get-Command go,python`.
 READINESS GATES: IDENTITY/OS/TOOLCHAIN/ABI/CLOCK(n/a)/CRYPTO(conformance keys in `harness/keys`)/FIXTURE(vectors+manifest)/PORTS(n/a)/SERVICES(n/a)/TRUST(n/a)/ENV_VARS/WORKTREE — all PASS → `ENVIRONMENT_READY=PASS`.
 ENTRYPOINT: `python .\harness\harness.py --mode cli` (legacy CLI engine; `hacp-go` is single-shot `evaluate --vector`; invocation `<binary> evaluate --vector <tmp>` + node branch for `.js` — `harness.py:623-627`; flags `--mode/--binary-path/--vectors-dir/--output` — `harness.py:758-796`).
 EXACT WINDOWS COMMANDS (build Go CLI using `go build -o <run>\hacp-go.exe .` in `hacp-spec\hacp-go`; run from `hacp-spec`):
@@ -30,15 +30,15 @@ python .\harness\harness.py --mode cli --binary-path <run>\hacp-go.exe --vectors
 ```
 EXECUTION ORDER: Core → HC2 (two blocks, two verdicts).
 EXPECTED RESULT: Core `RESULTS: 38/38 passed` (+digest `sha256:1e167887…`); HC2 `RESULTS: 55/55 passed`. PASS CRITERIA: exact counts; RC according to the harness contract.
-ENVIRONMENT RED: incorrect pin; missing protoc…(n/a); missing Python dependencies; missing runner build. BEHAVIORAL RED: any vector mismatch (count differs from expected).
+ENVIRONMENT RED: incorrect RC SPEC source; missing protoc…(n/a); missing Python dependencies; missing runner build. BEHAVIORAL RED: any vector mismatch (count differs from expected).
 EVIDENCE OUTPUT: complete console output from both blocks, RC, runner SHA-256, identity gates, toolchain versions.
-CLEANUP: harness processes terminate on their own; build artifacts reside outside the tree or are gitignored. POST-RUN GUARDS: P tree clean; HEAD=pin.
+CLEANUP: harness processes terminate on their own; build artifacts reside outside the tree or are gitignored. POST-RUN GUARDS: P tree clean; HEAD=resolved `RC_SPEC_SOURCE`.
 DEPENDENCIES: S05 is not required (this surface uses its own Go runner); sharing the environment with S05 is permitted, but verdicts remain separate.
 
 # S02 — TypeScript conformance (A2 Core-38 + A6 HC2-55)
 
 ENVIRONMENT: REPO=P (`hacp-ts/`), Node.js + npm (record versions using `node --version; npm --version`); `npm install` if necessary (`node_modules` may already exist); clean tree.
-PREFLIGHT: `node --version`, `npm --version`, `Get-Command node,npm`; pin-check P.
+PREFLIGHT: `node --version`, `npm --version`, `Get-Command node,npm`; RC SPEC source identity check P.
 ENTRYPOINT: `python .\harness\harness.py --mode cli --binary-path .\hacp-ts\dist\cli.js` (legacy CLI engine; `CLITarget` automatically invokes `node dist\cli.js evaluate --vector <tmp>` for `.js` targets — `harness.py:623-627`; CLI interface `hacp-ts evaluate --vector <path>` — `hacp-ts/src/cli.ts:51-56`).
 EXACT WINDOWS COMMANDS (after `npm run build` in `hacp-ts`; run from `hacp-spec`):
 ```powershell
@@ -51,27 +51,27 @@ npm run test:conformance
 ```
 EXECUTION ORDER: Core → HC2, separate verdicts.
 EXPECTED: Core-38 mapping (historically: 1 inventory assertion + 38 vectors = 39/39); HC2 `55/55`.
-ENV RED: missing node/npm; incorrect pin. BEHAVIORAL RED: vector mismatch.
+ENV RED: missing node/npm; incorrect RC SPEC source. BEHAVIORAL RED: vector mismatch.
 EVIDENCE: npm/harness output, RC, versions, identity gates. CLEANUP: processes terminate; do not commit `node_modules`. GUARDS: clean tree.
 DEPENDENCIES: none. CLAIM: do not derive the TS Core claim from the aggregate npm count (historical A2 qualification).
 
 # S03 — Python conformance (A3 Core-38 + A7 HC2-55)
 
-ENVIRONMENT: REPO=C (`humanist-core`), Python 3.13.x, `pip install -e ".[dev]"` (per C CI); vectors from adjacent P (pin `3ea4adc…`; record P identity).
-PREFLIGHT: `python --version`; `pytest --version`; P pin-check.
+ENVIRONMENT: REPO=C (`humanist-core`), Python 3.13.x, `pip install -e ".[dev]"` (per C CI); vectors from adjacent P (resolved active `1.1.1-rc.1` SPEC source `RC_SPEC_SOURCE`; record P identity).
+PREFLIGHT: `python --version`; `pytest --version`; P RC SPEC source identity check.
 COMMANDS:
 ```powershell
 pytest tests\conformance\test_core_vectors.py -v -rs      # Core-38 (A3) — separate verdict
 pytest tests\conformance\test_enforcement_v2_vectors.py -v -rs   # HC2-55 (A7) — separate verdict
 ```
 EXPECTED: Core 38/38; HC2 55/55; SKIP=0 (`-rs` mandatory; SKIP≠PASS).
-ENV RED: missing python/pytest/deps; P pin mismatch. BEHAVIORAL RED: vector mismatch; SKIP when the environment is present (classify as ENV RED).
+ENV RED: missing python/pytest/deps; P RC SPEC source mismatch. BEHAVIORAL RED: vector mismatch; SKIP when the environment is present (classify as ENV RED).
 EVIDENCE: complete pytest output, RC, identity gates. CLEANUP: n/a. GUARDS: C/P clean.
 DEPENDENCIES: none.
 
 # S04 — Rust HC2-55 (A8; extension of C)
 
-ENVIRONMENT: identical to C (P detached pin `3ea4adc…`; Rust `stable-x86_64-pc-windows-msvc`; protoc REQUIRED (`hacp-rs/build.rs:3`); Python+harness; `Cargo.lock`). Runner `hacp-rs-runner` is already built by the C procedure.
+ENVIRONMENT: identical to C (P resolved active `1.1.1-rc.1` SPEC source `RC_SPEC_SOURCE`; Rust `stable-x86_64-pc-windows-msvc`; protoc REQUIRED (`hacp-rs/build.rs:3`); Python+harness; `Cargo.lock`). Runner `hacp-rs-runner` is already built by the C procedure.
 COMMANDS:
 ```powershell
 python .\harness\enforcement_v2_runner.py --runner .\hacp-rs\target\release\hacp-rs-runner.exe --vectors-dir .\vectors\enforcement-v2 --implementation-name hacp-rs --output console
