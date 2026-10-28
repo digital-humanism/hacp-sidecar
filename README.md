@@ -1,7 +1,7 @@
- # HACP Sidecar
- 
-![release](https://img.shields.io/badge/release-1.1.1--rc.1-orange) [![Tests](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/tests.yml/badge.svg?branch=RELEASE/1.1.1)](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/tests.yml) [![GO](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/go.yml/badge.svg?branch=RELEASE/1.1.1)](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/go.yml) [![RUST](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/rust.yml/badge.svg?branch=RELEASE/1.1.1)](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/rust.yml)
- 
+# HACP Sidecar
+
+![release](https://img.shields.io/badge/release-1.1.1-brightgreen) [![Tests](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/tests.yml/badge.svg?branch=RELEASE/1.1.1)](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/tests.yml) [![GO](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/go.yml/badge.svg?branch=RELEASE/1.1.1)](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/go.yml) [![RUST](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/rust.yml/badge.svg?branch=RELEASE/1.1.1)](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/rust.yml)
+
 Enforcement sidecar for the **Human Agency Continuity Protocol (HACP)**.
 
 Implements the HACP Enforcement profile defined by [`hacp-spec`](https://github.com/digital-humanism/hacp-spec).
@@ -14,8 +14,7 @@ HACP Sidecar is a fail-closed enforcement point between an AI agent and protecte
 |---|---|
 | Historical sidecar release label | `v0.5.0` |
 | Historical specification release label | `0.9.3` |
-| Current HACP release composition | `1.1.1` — pre-release candidate |
-| Approved stable HACP release | `1.1.0` |
+| Current HACP release composition | `1.1.1` — stable |
 | Inherited stable baseline | `1.0.0` Variant A |
 | HACP-Core conformance baseline | `0.9.2` |
 | Wire protocol family | `0.9` |
@@ -25,9 +24,9 @@ HACP Sidecar is a fail-closed enforcement point between an AI agent and protecte
 
 These versions belong to separate release and compatibility domains and MUST NOT be conflated.
 
-HACP 1.1.1 is a pre-release candidate, not an authorized stable release.
-The release composition is distinct from historical standalone sidecar
-and specification labels, the Core suite, wire/object version, and Runner Protocol.
+HACP 1.1.1 is the current stable release, promoted from the verified `1.1.1-rc.1` composition without introducing a new semantic composition generation.
+
+The HACP release composition remains distinct from historical standalone sidecar and specification labels, the Core suite, wire/object version, and Runner Protocol.
 
 ---
 
@@ -64,7 +63,7 @@ The enforcement pipeline is strictly **fail closed**.
 Current release verification status:
 
 ```text
-HACP-Core                         38/38 PASS
+HACP-Core                        38/38 PASS
 HC2                              55/55 PASS
 sidecar t_go matrix              PASS
 sidecar t_rs matrix              PASS
