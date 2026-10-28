@@ -1,0 +1,333 @@
+name: GO
+
+on:
+  push:
+    branches:
+      - RELEASE/1.1.1
+  pull_request:
+    branches:
+      - RELEASE/1.1.1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  go-verification:
+    name: GO verification
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout hacp-sidecar
+        uses: actions/checkout@v7
+        with:
+          path: hacp-sidecar
+
+      - name: Checkout hacp-spec
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository_owner }}/hacp-spec
+          ref: RELEASE/1.1.1
+          path: hacp-spec
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: hacp-sidecar/go.mod
+          cache-dependency-path: hacp-sidecar/go.sum
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
+
+      - name: Install HACP harness requirements
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          python -m pip install -r hacp-spec\harness\requirements.txt
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: Download sidecar Go dependencies
+        working-directory: hacp-sidecar
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          go mod download
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: Build Go verification binaries
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $buildRoot = Join-Path $env:RUNNER_TEMP 'hacp-go-verification'
+          New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
+
+          Push-Location hacp-spec\hacp-go
+          try {
+            go build -o (Join-Path $buildRoot 'hacp-go.exe') .
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+          Push-Location hacp-sidecar
+          try {
+            go build `
+              -o (Join-Path $buildRoot 'hacp-conformance-runner.exe') `
+              .\cmd\hacp-conformance-runner
+
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+      - name: A — Go regression
+        working-directory: hacp-sidecar
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          go test .\internal\proxy -run TestR43 -count=1 -v
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          go test .\internal\proxy -count=1 -v
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          go test ./... -count=1
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: S01 — Go Core and HC2
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $buildRoot = Join-Path $env:RUNNER_TEMP 'hacp-go-verification'
+          $binary = Join-Path $buildRoot 'hacp-go.exe'
+          $specRoot = (Resolve-Path 'hacp-spec').Path
+          $harness = Join-Path $specRoot 'harness\harness.py'
+
+          $coreOutput = @(
+            & python `
+              $harness `
+              --mode cli `
+              --binary-path $binary `
+              --vectors-dir (Join-Path $specRoot 'vectors') `
+              --output console 2>&1
+          )
+
+          $coreOutput | ForEach-Object { Write-Host $_ }
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          if (($coreOutput -join "`n") -notmatch '38/38') {
+            throw 'S01 Core expected marker 38/38 was not found.'
+          }
+
+          $hc2Output = @(
+            & python `
+              $harness `
+              --mode cli `
+              --binary-path $binary `
+              --vectors-dir (Join-Path $specRoot 'vectors\enforcement-v2') `
+              --output console 2>&1
+          )
+
+          $hc2Output | ForEach-Object { Write-Host $_ }
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          if (($hc2Output -join "`n") -notmatch '55/55') {
+            throw 'S01 HC2 expected marker 55/55 was not found.'
+          }
+
+      - name: S05 — Sidecar HC2
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $buildRoot = Join-Path $env:RUNNER_TEMP 'hacp-go-verification'
+          $runner = Join-Path $buildRoot 'hacp-conformance-runner.exe'
+          $specRoot = (Resolve-Path 'hacp-spec').Path
+          $harnessRoot = Join-Path $specRoot 'harness'
+          $script = Join-Path $harnessRoot 'enforcement_v2_runner.py'
+
+          Push-Location $harnessRoot
+          try {
+            $output = @(
+              & python `
+                $script `
+                --runner $runner `
+                --vectors-dir (Join-Path $specRoot 'vectors\enforcement-v2') `
+                --implementation-name hacp-sidecar `
+                --implementation-version 0.5.0 `
+                --output console `
+                --verbose 2>&1
+            )
+
+            $output | ForEach-Object { Write-Host $_ }
+
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+
+            if (($output -join "`n") -notmatch '55/55') {
+              throw 'S05 expected marker 55/55 was not found.'
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+      - name: S11 — Signature canonicalization
+        working-directory: hacp-sidecar
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $sidecarRoot = (Get-Location).Path
+
+          $source = (
+            Resolve-Path `
+              'test\matrix\t_go\S11_signature_canonicalization_test.go.overlay'
+          ).Path
+
+          $virtual = Join-Path `
+            $sidecarRoot `
+            'internal\wire\s11_matrix_verification_test.go'
+
+          $overlay = Join-Path `
+            $env:RUNNER_TEMP `
+            'S11.overlay.json'
+
+          $overlayDocument = [ordered]@{
+            Replace = [ordered]@{
+              $virtual = $source
+            }
+          }
+
+          $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+
+          [System.IO.File]::WriteAllText(
+            $overlay,
+            ($overlayDocument | ConvertTo-Json -Depth 5),
+            $utf8NoBom
+          )
+
+          $runRegex = '^(TestCanonicalizeJSONSortsTopLevelKeys|TestCanonicalizeJSONSortsNestedKeys|TestCanonicalizeJSONStripsWhitespace|TestCanonicalizeJSONPreservesArrayOrder|TestCanonicalizeJSONNumberLargeInteger|TestCanonicalizeJSONKeepsSolidusUnescaped|TestCanonicalizeJSONKeepsEscapedLineFeed|TestCanonicalizeJSONRejectsInvalidInput|TestVerifyCanonicalizationDetectsEquivalence|TestRemoveSignatureFieldStripsSignature|TestVerifyEd25519AcceptsValidSignature|TestVerifyEd25519RejectsTamperedMessage|TestVerifyEd25519RejectsCorruptedSignature|TestVerifyEd25519RejectsWrongKey|TestSignatureBindsCanonicalForm)$'
+
+          go test `
+            -overlay $overlay `
+            .\internal\wire `
+            -run $runRegex `
+            -count=1 `
+            -v
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: S12 — Budget and replay
+        working-directory: hacp-sidecar
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $sidecarRoot = (Get-Location).Path
+
+          $budgetSource = (
+            Resolve-Path `
+              'test\matrix\t_go\S12_budget_ledger_test.go.overlay'
+          ).Path
+
+          $proxySource = (
+            Resolve-Path `
+              'test\matrix\t_go\S12_budget_replay_verification_test.go.overlay'
+          ).Path
+
+          $budgetVirtual = Join-Path `
+            $sidecarRoot `
+            'internal\budget\s12_matrix_budget_ledger_test.go'
+
+          $proxyVirtual = Join-Path `
+            $sidecarRoot `
+            'internal\proxy\s12_matrix_budget_replay_verification_test.go'
+
+          $budgetOverlay = Join-Path `
+            $env:RUNNER_TEMP `
+            'S12-budget.overlay.json'
+
+          $proxyOverlay = Join-Path `
+            $env:RUNNER_TEMP `
+            'S12-proxy.overlay.json'
+
+          $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+
+          $budgetOverlayDocument = [ordered]@{
+            Replace = [ordered]@{
+              $budgetVirtual = $budgetSource
+            }
+          }
+
+          [System.IO.File]::WriteAllText(
+            $budgetOverlay,
+            ($budgetOverlayDocument | ConvertTo-Json -Depth 5),
+            $utf8NoBom
+          )
+
+          $proxyOverlayDocument = [ordered]@{
+            Replace = [ordered]@{
+              $proxyVirtual = $proxySource
+            }
+          }
+
+          [System.IO.File]::WriteAllText(
+            $proxyOverlay,
+            ($proxyOverlayDocument | ConvertTo-Json -Depth 5),
+            $utf8NoBom
+          )
+
+          go test `
+            -overlay $budgetOverlay `
+            .\internal\budget `
+            -run '^TestConsumeToken' `
+            -count=1 `
+            -v
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          go test `
+            -overlay $proxyOverlay `
+            .\internal\proxy `
+            -run '^(TestBudgetDefaultMaxUsesOneDeniesSecondUse|TestBudgetMaxUsesExhaustionDeniesWithBudgetExhausted|TestBudgetReplayRemainsDeniedAfterExhaustion)$' `
+            -count=1 `
+            -v
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }

@@ -1,0 +1,520 @@
+name: RUST
+
+on:
+  push:
+    branches:
+      - RELEASE/1.1.1
+  pull_request:
+    branches:
+      - RELEASE/1.1.1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-verification:
+    name: RUST verification
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout hacp-sidecar
+        uses: actions/checkout@v7
+        with:
+          path: hacp-sidecar
+
+      - name: Checkout hacp-spec
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository_owner }}/hacp-spec
+          ref: RELEASE/1.1.1
+          path: hacp-spec
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.x'
+
+      - name: Prepare Rust MSVC toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          rustup toolchain install stable-x86_64-pc-windows-msvc --profile minimal
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          rustc +stable-x86_64-pc-windows-msvc --version
+          cargo +stable-x86_64-pc-windows-msvc --version
+
+      - name: Verify required toolchains
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          foreach ($cmd in @('git', 'python', 'go', 'rustc', 'cargo', 'rustup', 'protoc')) {
+            $found = Get-Command $cmd -ErrorAction SilentlyContinue
+
+            if (-not $found) {
+              throw "Required tool is missing: $cmd"
+            }
+
+            Write-Host "$cmd=$($found.Source)"
+          }
+
+      - name: Install HACP harness requirements
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          python -m pip install -r hacp-spec\harness\requirements.txt
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: Fetch locked Rust dependencies
+        working-directory: hacp-spec\hacp-rs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          cargo +stable-x86_64-pc-windows-msvc fetch --locked
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: Build Rust verification runner
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $target = Join-Path $env:RUNNER_TEMP 'hacp-rs-target'
+          $env:CARGO_TARGET_DIR = $target
+
+          Push-Location hacp-spec\hacp-rs
+          try {
+            cargo +stable-x86_64-pc-windows-msvc build `
+              --locked `
+              --release `
+              --bin hacp-rs-runner
+
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+          $runner = Join-Path $target 'release\hacp-rs-runner.exe'
+
+          if (-not (Test-Path -LiteralPath $runner -PathType Leaf)) {
+            throw "Rust verification runner not found: $runner"
+          }
+
+      - name: RS01 — Rust Core
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $specRoot = (Resolve-Path 'hacp-spec').Path
+          $sidecarRoot = (Resolve-Path 'hacp-sidecar').Path
+
+          $target = Join-Path $env:RUNNER_TEMP 'hacp-rs-target'
+          $runner = Join-Path $target 'release\hacp-rs-runner.exe'
+
+          $matrixScript = Join-Path `
+            $sidecarRoot `
+            'test\matrix\t_rs\Scripts\02-Run-Verification.ps1'
+
+          $source = Get-Content -LiteralPath $matrixScript -Raw
+
+          $pattern = '(?s)\$corePython\s*=\s*@"\r?\n(.*?)\r?\n"@'
+
+          $match = [regex]::Match($source, $pattern)
+
+          if (-not $match.Success) {
+            throw 'RS01 existing corePython verification body was not found.'
+          }
+
+          $rs01Root = Join-Path $env:RUNNER_TEMP 'rs01'
+          New-Item -ItemType Directory -Path $rs01Root -Force | Out-Null
+
+          $corePy = Join-Path $rs01Root 'rust-core-family-a.py'
+
+          [System.IO.File]::WriteAllText(
+            $corePy,
+            $match.Groups[1].Value,
+            [System.Text.UTF8Encoding]::new($false)
+          )
+
+          $output = @(
+            & python `
+              $corePy `
+              $specRoot `
+              $runner `
+              $rs01Root 2>&1
+          )
+
+          $rc = $LASTEXITCODE
+
+          $output | ForEach-Object { Write-Host $_ }
+
+          if ($rc -ne 0) {
+            exit $rc
+          }
+
+          $joined = $output -join "`n"
+
+          foreach ($marker in @(
+            'DIRECT RESULTS: 36/38 passed',
+            'ADJUDICATED: 2',
+            'FINAL ACCOUNTING: 36 direct + 2 adjudicated',
+            '[FAIL] CORE-INV1-002:',
+            '[FAIL] CORE-RUNTIME-004:',
+            '[PASS] CORE-INV5-006:',
+            'RAW-WIRE: DENY / INVALID_ACTION'
+          )) {
+            if (-not $joined.Contains($marker)) {
+              throw "RS01 expected marker missing: $marker"
+            }
+          }
+
+      - name: RS02 — Rust HC2
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $specRoot = (Resolve-Path 'hacp-spec').Path
+          $target = Join-Path $env:RUNNER_TEMP 'hacp-rs-target'
+          $runner = Join-Path $target 'release\hacp-rs-runner.exe'
+
+          $harnessRoot = Join-Path $specRoot 'harness'
+          $script = Join-Path $harnessRoot 'enforcement_v2_runner.py'
+
+          Push-Location $harnessRoot
+          try {
+            $output = @(
+              & python `
+                $script `
+                --runner $runner `
+                --vectors-dir (Join-Path $specRoot 'vectors\enforcement-v2') `
+                --implementation-name hacp-rs `
+                --output console 2>&1
+            )
+
+            $rc = $LASTEXITCODE
+
+            $output | ForEach-Object { Write-Host $_ }
+
+            if ($rc -ne 0) {
+              exit $rc
+            }
+
+            if (($output -join "`n") -notmatch '55/55') {
+              throw 'RS02 expected marker 55/55 was not found.'
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+      - name: RS03 — Rust package qualification
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $specRoot = (Resolve-Path 'hacp-spec').Path
+          $target = Join-Path $env:RUNNER_TEMP 'hacp-rs-target'
+
+          $env:CARGO_TARGET_DIR = $target
+          $env:HACP_E13_CORPUS = Join-Path `
+            $specRoot `
+            'vectors\family1\E13_R01_R24_NORMALIZED_CORPUS.json'
+
+          $env:HACP_E13_FAMILY2_FIXTURE = Join-Path `
+            $specRoot `
+            'vectors\family2\e5c6_binding_fixture.json'
+
+          $env:HACP_E13_FAMILY2_PUBLIC_KEY = Join-Path `
+            $specRoot `
+            'harness\keys\test-ed25519-001.pub'
+
+          foreach ($path in @(
+            $env:HACP_E13_CORPUS,
+            $env:HACP_E13_FAMILY2_FIXTURE,
+            $env:HACP_E13_FAMILY2_PUBLIC_KEY
+          )) {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "RS03 required input missing: $path"
+            }
+          }
+
+          Push-Location hacp-spec\hacp-rs
+          try {
+            $output = @(
+              & cargo +stable-x86_64-pc-windows-msvc test --locked 2>&1
+            )
+
+            $rc = $LASTEXITCODE
+
+            $output | ForEach-Object { Write-Host $_ }
+
+            if ($rc -ne 0) {
+              exit $rc
+            }
+
+            $passed = 0
+            $failed = 0
+            $ignored = 0
+
+            foreach ($line in $output) {
+              $text = "$line"
+
+              if ($text -match 'test result:') {
+                if ($text -match '(\d+)\s+passed') {
+                  $passed += [int]$Matches[1]
+                }
+
+                if ($text -match '(\d+)\s+failed') {
+                  $failed += [int]$Matches[1]
+                }
+
+                if ($text -match '(\d+)\s+ignored') {
+                  $ignored += [int]$Matches[1]
+                }
+              }
+            }
+
+            Write-Host "RS03 passed=$passed failed=$failed ignored=$ignored"
+
+            if (
+              $passed -ne 48 -or
+              $failed -ne 0 -or
+              $ignored -ne 1
+            ) {
+              throw "RS03 expected 48/0/1; actual $passed/$failed/$ignored"
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+      - name: RS07 — Rust autonomy budget
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $specRoot = (Resolve-Path 'hacp-spec').Path
+          $sidecarRoot = (Resolve-Path 'hacp-sidecar').Path
+          $target = Join-Path $env:RUNNER_TEMP 'hacp-rs-target'
+          $env:CARGO_TARGET_DIR = $target
+
+          $rs07Source = Join-Path `
+            $sidecarRoot `
+            'test\matrix\t_rs\RS07_budget_replay_verification.rs'
+
+          $goldenSource = Join-Path `
+            $specRoot `
+            'vectors\core_inv1_001_golden.json'
+
+          $rs07ExpectedSha = `
+            'E97E732546F6D1688F0EEB464259F4F0B7B53C82BE3F37B97EEC776C94859FB2'
+
+          $goldenExpectedSha = `
+            'FA2CAE774C39F9C7C6174B956C55F62F43DA1CD507887E858342B34B3B62086C'
+
+          function Get-CanonicalTextSha256 {
+            param(
+              [Parameter(Mandatory)]
+              [string]$Path
+            )
+
+            $raw = [System.IO.File]::ReadAllBytes($Path)
+            $start = 0
+
+            if (
+              $raw.Length -ge 3 -and
+              $raw[0] -eq 0xEF -and
+              $raw[1] -eq 0xBB -and
+              $raw[2] -eq 0xBF
+            ) {
+              $start = 3
+            }
+
+            $stream = [System.IO.MemoryStream]::new()
+
+            try {
+              for ($i = $start; $i -lt $raw.Length; $i++) {
+                $b = $raw[$i]
+
+                if ($b -eq 0x0D) {
+                  if (
+                    ($i + 1) -lt $raw.Length -and
+                    $raw[$i + 1] -eq 0x0A
+                  ) {
+                    $i++
+                  }
+
+                  $stream.WriteByte(0x0A)
+                }
+                else {
+                  $stream.WriteByte($b)
+                }
+              }
+
+              $canonical = $stream.ToArray()
+            }
+            finally {
+              $stream.Dispose()
+            }
+
+            $hasher = [System.Security.Cryptography.SHA256]::Create()
+
+            try {
+              $digest = $hasher.ComputeHash($canonical)
+              return [System.Convert]::ToHexString($digest)
+            }
+            finally {
+              $hasher.Dispose()
+            }
+          }
+
+          $rs07ActualSha = Get-CanonicalTextSha256 -Path $rs07Source
+          $goldenActualSha = Get-CanonicalTextSha256 -Path $goldenSource
+
+          if ($rs07ActualSha -ne $rs07ExpectedSha) {
+            throw "RS07 source SHA-256 mismatch: $rs07ActualSha"
+          }
+
+          if ($goldenActualSha -ne $goldenExpectedSha) {
+            throw "RS07 golden SHA-256 mismatch: $goldenActualSha"
+          }
+
+          $overlayRoot = Join-Path $env:RUNNER_TEMP 'rs07-overlay'
+          $crateRoot = Join-Path $overlayRoot 'hacp-rs'
+          $testsRoot = Join-Path $crateRoot 'tests'
+          $vectorsRoot = Join-Path $overlayRoot 'vectors'
+
+          New-Item -ItemType Directory -Path $testsRoot -Force | Out-Null
+          New-Item -ItemType Directory -Path $vectorsRoot -Force | Out-Null
+
+          $testFile = Join-Path `
+            $testsRoot `
+            'budget_replay_verification.rs'
+
+          $goldenFile = Join-Path `
+            $vectorsRoot `
+            'core_inv1_001_golden.json'
+
+          Copy-Item `
+            -LiteralPath $rs07Source `
+            -Destination $testFile `
+            -Force
+
+          Copy-Item `
+            -LiteralPath $goldenSource `
+            -Destination $goldenFile `
+            -Force
+
+          $testSha = Get-CanonicalTextSha256 -Path $testFile
+          $goldenSha = Get-CanonicalTextSha256 -Path $goldenFile
+
+          if ($testSha -ne $rs07ExpectedSha) {
+            throw 'RS07 overlay test identity mismatch.'
+          }
+
+          if ($goldenSha -ne $goldenExpectedSha) {
+            throw 'RS07 overlay golden identity mismatch.'
+          }
+
+          $hacpRsPath = (
+            Resolve-Path 'hacp-spec\hacp-rs'
+          ).Path.Replace('\', '/')
+
+          $manifest = @"
+          [package]
+          name = "hacp-rs-rs07-overlay"
+          version = "0.0.0"
+          edition = "2021"
+          publish = false
+
+          [dependencies]
+          hacp-rs = { path = "$hacpRsPath" }
+          ed25519-dalek = { version = "2", features = ["alloc"] }
+          sha2 = "0.10"
+          serde_json = "1"
+          base64 = "0.22"
+          hex = "0.4"
+          "@
+
+          $manifestPath = Join-Path $crateRoot 'Cargo.toml'
+
+          [System.IO.File]::WriteAllText(
+            $manifestPath,
+            $manifest,
+            [System.Text.UTF8Encoding]::new($false)
+          )
+
+          Push-Location $crateRoot
+          try {
+            cargo +stable-x86_64-pc-windows-msvc generate-lockfile `
+              --offline `
+              --manifest-path $manifestPath
+
+            if ($LASTEXITCODE -ne 0) {
+              exit $LASTEXITCODE
+            }
+
+            $output = @(
+              & cargo +stable-x86_64-pc-windows-msvc test `
+                --locked `
+                --offline `
+                --manifest-path $manifestPath `
+                --test budget_replay_verification 2>&1
+            )
+
+            $rc = $LASTEXITCODE
+
+            $output | ForEach-Object { Write-Host $_ }
+
+            if ($rc -ne 0) {
+              exit $rc
+            }
+
+            $passed = 0
+            $failed = 0
+            $ignored = 0
+
+            foreach ($line in $output) {
+              $text = "$line"
+
+              if ($text -match 'test result:') {
+                if ($text -match '(\d+)\s+passed') {
+                  $passed += [int]$Matches[1]
+                }
+
+                if ($text -match '(\d+)\s+failed') {
+                  $failed += [int]$Matches[1]
+                }
+
+                if ($text -match '(\d+)\s+ignored') {
+                  $ignored += [int]$Matches[1]
+                }
+              }
+            }
+
+            Write-Host "RS07 passed=$passed failed=$failed ignored=$ignored"
+
+            if (
+              $passed -ne 3 -or
+              $failed -ne 0 -or
+              $ignored -ne 0
+            ) {
+              throw "RS07 expected 3/0/0; actual $passed/$failed/$ignored"
+            }
+          }
+          finally {
+            Pop-Location
+          }
