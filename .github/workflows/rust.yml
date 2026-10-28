@@ -48,6 +48,11 @@ jobs:
           rustc +stable-x86_64-pc-windows-msvc --version
           cargo +stable-x86_64-pc-windows-msvc --version
 
+      - name: Set up protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          version: '35.1'
+
       - name: Verify required toolchains
         shell: pwsh
         run: |
@@ -62,6 +67,8 @@ jobs:
 
             Write-Host "$cmd=$($found.Source)"
           }
+
+          protoc --version
 
       - name: Install HACP harness requirements
         shell: pwsh
