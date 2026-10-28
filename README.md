@@ -1,7 +1,7 @@
-# HACP Sidecar
-
-[![release](https://img.shields.io/github/v/release/digital-humanism/hacp-sidecar?label=release)](https://github.com/digital-humanism/hacp-sidecar/releases/latest)
-
+ # HACP Sidecar
+ 
+![release](https://img.shields.io/badge/release-1.1.1--rc.1-orange) [![Tests](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/tests.yml/badge.svg?branch=RELEASE/1.1.1)](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/tests.yml) [![GO](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/go.yml/badge.svg?branch=RELEASE/1.1.1)](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/go.yml) [![RUST](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/rust.yml/badge.svg?branch=RELEASE/1.1.1)](https://github.com/digital-humanism/hacp-sidecar/actions/workflows/rust.yml)
+ 
 Enforcement sidecar for the **Human Agency Continuity Protocol (HACP)**.
 
 Implements the HACP Enforcement profile defined by [`hacp-spec`](https://github.com/digital-humanism/hacp-spec).
