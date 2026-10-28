@@ -59,7 +59,24 @@ The enforcement pipeline is strictly **fail closed**.
 
 # Project Status
 
-**Phase 4 — Gates A–E closed**
+**HACP 1.1.1-rc.1 release composition — verified pre-release candidate**
+
+Current release verification status:
+
+```text
+HACP-Core                         38/38 PASS
+HC2                              55/55 PASS
+sidecar t_go matrix              PASS
+sidecar t_rs matrix              PASS
+three-repository clean clone     PASS
+functional RED                   0
+technical release blockers       0
+```
+
+The HACP 1.1.1 release composition remains a pre-release candidate
+until the separate human release-acceptance and publication boundary.
+
+**Historical engineering milestones — Phase 4 Gates A–E closed**
 
 | Gate | Focus | Status |
 |---|---|---|
@@ -168,16 +185,23 @@ full Go regression            PASS
 
 ## Verification
 
-- ✅ 38/38 HACP-Core conformance vectors
+- ✅ HACP-Core conformance — 38/38
+- ✅ HC2 enforcement evidence — 55/55
+- ✅ Go-led release verification matrix — `test/matrix/t_go`
+- ✅ Rust-led release verification matrix — `test/matrix/t_rs`
+- ✅ Rust Core — 36 direct + 2 adjudicated / 38
+- ✅ Rust HC2 — 55/55
+- ✅ Rust package active tests — 48 passed
 - ✅ Gate E control-plane integration suite
-- ✅ full `go test ./...`
-- ✅ `go vet`
-- ✅ serial Gate D benchmark
-- ✅ concurrent rotating-token benchmark
-- ✅ high-rate rotating-token benchmark
-- ✅ shared-token load characterization
-- ✅ GitHub Actions regression workflow
+- ✅ full Go regression and build verification
 - ✅ PH-1B anti-bypass deployment verification — 5/5
+- ✅ repository-owned runtime / integration verification
+- ✅ independent three-repository clean-clone verification for HACP 1.1.1-rc.1
+- ✅ GitHub Actions regression workflow
+
+Historical Gate D benchmark results remain documented below and in
+`docs/engineering/`; they are not reinterpreted as current release
+conformance gates.
 
 ---
 
@@ -386,50 +410,44 @@ Prevention of direct upstream bypass is a deployment responsibility and should u
 
 # Repository Structure
 
+The `RELEASE/1.1.1` branch contains the following major tracked surfaces:
+
 ```text
 hacp-sidecar/
 ├── .github/
 │   └── workflows/
-│       └── tests.yml
 │
 ├── benchmarks/
 │   ├── benchmark-rotating/
 │   ├── generate-tokens/
-│   ├── benchmark.ps1
-│   ├── benchmark.sh
-│   ├── benchmark_rotating.ps1
-│   └── benchmark_serial.ps1
+│   ├── go-http-reproduction/
+│   ├── rust-http-reproduction/
+│   └── benchmark scripts
 │
 ├── cmd/
-│   ├── gen-token/
 │   ├── hacp-conformance-runner/
 │   └── sidecar/
 │
 ├── deployments/
 │   ├── control-plane/
-│   └── upstream/
+│   ├── upstream/
+│   ├── Dockerfile.control
+│   ├── Dockerfile.sidecar
+│   ├── Dockerfile.upstream
+│   └── docker-compose.yml
 │
 ├── docs/
-│   ├── README.md
 │   ├── architecture/
-│   │   ├── architecture.md
-│   │   └── distributed-control-plane.md
-│   ├── gates/
-│   │   └── gate-e-distributed-control-plane.md
 │   ├── engineering/
-│   │   ├── gate-d-benchmark.md
-│   │   ├── gate-d-performance-validation.md
-│   │   └── gate-e-engineering-report.md
+│   ├── gates/
+│   ├── history-artifacts/
+│   ├── release/
 │   ├── security/
-│   │   └── key-lifecycle-and-trust.md
 │   └── verification/
-│       └── distributed-control-plane-testing.md
 │
 ├── gen/
 │   └── controlplane/
 │       └── v1/
-│           ├── control_plane.pb.go
-│           └── control_plane_grpc.pb.go
 │
 ├── internal/
 │   ├── budget/
@@ -441,16 +459,114 @@ hacp-sidecar/
 │   ├── trust/
 │   └── wire/
 │
-├── go.mod
-├── go.sum
+├── manifests/
+│   ├── HACP_1_1_0_COMPOSITION.md
+│   └── HACP_1_1_1_COMPOSITION.md
+│
+├── scripts/
+│   ├── demo.ps1
+│   ├── test-anti-bypass.ps1
+│   └── test-anti-bypass.sh
+│
+├── test/
+│   ├── deployments/
+│   ├── gitcheck-reproduction/
+│   └── matrix/
+│       ├── t_go/
+│       └── t_rs/
+│
+├── tools/
+│   └── reproduction/
+│       └── graceful-shutdown/
+│
+├── CHANGELOG.md
 ├── LICENSE.md
-└── README.md
+├── README.md
+├── SECURITY.md
+├── go.mod
+└── go.sum
 ```
 
-Generated benchmark tokens, benchmark result files, local executables, and machine-local artifacts are not intended to be committed.
+Generated benchmark outputs, local executables, run-owned evidence,
+temporary environments, and other machine-local artifacts are not
+intended to be committed.
 
 ---
 
+# Release Verification Matrix
+
+`test/matrix` contains the repository-owned release verification matrices
+used by the HACP 1.1.1 release workflow.
+
+```text
+test/matrix/
+├── t_go/
+│   ├── CONTRACTS_S01_S12.md
+│   ├── README.md
+│   ├── WINDOWS_EXECUTION_MANIFEST.md
+│   ├── TEST_REPRODUCTION_NOTE.md
+│   ├── verification overlays
+│   └── Scripts/
+│       ├── 00-Preflight.ps1
+│       ├── 01-Prepare-Environment.ps1
+│       ├── 02-Run-Verification.ps1
+│       ├── 03-Postflight.ps1
+│       ├── 04-Reconcile-Results.ps1
+│       └── WindowsVerification.Common.psm1
+│
+└── t_rs/
+    ├── README.md
+    ├── RUST_VERIFICATION_CONTRACTS.md
+    ├── RUST_MATRIX_RECONCILIATION.md
+    ├── WINDOWS_EXECUTION_MANIFEST_RS.md
+    ├── RS07_budget_replay_verification.rs
+    └── Scripts/
+        ├── 00-Preflight.ps1
+        ├── 01-Prepare-Environment.ps1
+        ├── 02-Run-Verification.ps1
+        ├── 03-Postflight.ps1
+        ├── 04-Reconcile-Results.ps1
+        └── WindowsVerification.Rust.Common.psm1
+```
+
+`t_go` is the Go-led repository verification path.
+
+`t_rs` is the Rust-led reproduction and verification path.
+
+Both use the same staged execution model:
+
+```text
+00 Preflight
+    ↓
+01 Prepare Environment
+    ↓
+02 Run Verification
+    ↓
+03 Postflight
+    ↓
+04 Reconcile Results
+```
+
+The matrix is verification infrastructure. It does not redefine the
+normative HACP protocol; normative protocol definitions, schemas, vectors,
+and cross-language conformance material remain owned by `hacp-spec`.
+
+For the HACP 1.1.1-rc.1 verified composition:
+
+```text
+t_go                           PASS
+t_rs                           PASS
+Rust Core                      36 direct + 2 adjudicated / 38
+Rust HC2                       55/55 PASS
+Rust package active tests      48 passed
+Rust historical Ed25519 v1 witness ignored 1
+three-repository clean clone   PASS
+```
+
+Release-specific documentation and reproducibility records are maintained
+under `docs/release/` and `docs/verification/`.
+
+---
 # Requirements
 
 ## Required
@@ -1136,7 +1252,7 @@ The broader human-agency principles that motivate HACP are articulated in the [D
 | [`hacp-spec`](https://github.com/digital-humanism/hacp-spec) | open protocol specification, schemas, vectors, control-plane contract | CC BY 4.0 |
 | [`humanist-core`](https://github.com/digital-humanism/humanist-core) | reference SDK | AGPLv3 + commercial dual |
 | [`hacp-sidecar`](https://github.com/digital-humanism/hacp-sidecar) | enforcement sidecar | AGPLv3 + commercial dual |
-| [`hacp-spec/hacp-rs`](https://github.com/digital-humanism/hacp-spec/tree/admit/hacp-1.1.1-pre-release/hacp-rs) | Rust reference/enforcement implementation | See component-specific licensing in `hacp-spec` |
+| [`hacp-spec/hacp-rs`](https://github.com/digital-humanism/hacp-spec/tree/RELEASE/1.1.1/hacp-rs) | Rust reference/enforcement implementation | See component-specific licensing in `hacp-spec` |
 
 This separation keeps the protocol itself open and vendor-neutral while allowing implementation repositories to maintain their own sustainability model.
 
